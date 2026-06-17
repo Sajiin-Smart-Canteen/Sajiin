@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kelola Menu — Smart Canteen</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__SUPABASE_URL__ = 'https://qeilvipuxxtbjfhioefd.supabase.co';
+    window.__SUPABASE_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaWx2aXB1eHh0YmpmaGlvZWZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDExMDAsImV4cCI6MjA5NjYxNzEwMH0.iDrj8fmcbuiJrv-mSOu9XYUrCYLv_Gga-vFQ12G5Pys';
+    window._supabase = window.supabase.createClient(
+      window.__SUPABASE_URL__,
+      window.__SUPABASE_KEY__
+    );
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#1B6B45', light: '#2D9362', dark: '#134E33' },
+            secondary: { DEFAULT: '#F5A623' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- ── SESSION GUARD ─────────────────────────────────── -->
+  <script>
+    window._supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        window.location.replace('/pages/auth/login.html');
+        return;
+      }
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        const { data: profile } = await window._supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        if (!profile || profile.role !== 'tenant') {
+          window.location.replace('/pages/auth/login.html');
+          return;
+        }
+        if (typeof init === 'function') init(session, profile);
+      }
+    });
+  </script>
+
+  <div class="flex min-h-screen">
+
+    <!-- ── SIDEBAR ───────────────────────────────────────── -->
+    <aside class="fixed top-0 left-0 h-full w-60 flex flex-col z-30"
+           style="background:#1B6B45">
+      <div class="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+        <div class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg">🍽️</div>
+        <div>
+          <p class="text-white font-bold text-sm leading-tight">Smart Canteen</p>
+          <p class="text-white/50 text-xs">Seller Portal</p>
+        </div>
+      </div>
+      <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>📊</span> Dashboard
+        </a>
+        <a href="pesanan-masuk.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>📋</span> Pesanan Masuk
+        </a>
+        <a href="kelola-menu.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition" style="background:rgba(255,255,255,0.15); color:white">
+          <span>🍜</span> Kelola Menu
+        </a>
+        <a href="reduce-waste.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>♻️</span> Reduce Waste
+        </a>
+        <a href="analytics.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>📈</span> Analytics
+        </a>
+        <a href="pengaturan.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>⚙️</span> Pengaturan Toko
+        </a>
+        <a href="profil.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>👤</span> Profil Saya
+        </a>
+      </nav>
+      <div class="px-3 py-4 border-t border-white/10">
+        <button id="btnLogout" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🚪</span> Keluar
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── MAIN ───────────────────────────────────────────── -->
+    <main class="flex-1 ml-60 flex flex-col min-h-screen">
+
+      <!-- ── TOPBAR ─────────────────────────────────────── -->
+      <header class="sticky top-0 z-20 bg-white border-b border-gray-100
+                     px-6 py-3 flex items-center justify-between">
+        <div>
+          <h2 class="font-semibold text-gray-800 text-sm">🍜 Kelola Menu</h2>
+          <p class="text-xs text-gray-400">Tambah, edit, dan atur ketersediaan menu</p>
+        </div>
+        <button id="btnTambahMenu"
+                class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold
+                       text-white transition hover:opacity-90"
+                style="background:#1B6B45">
+          + Tambah Menu
+        </button>
+      </header>
+
+      <!-- ── STAT CARDS ─────────────────────────────────── -->
+      <div class="px-6 pt-5">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <p class="text-xs text-gray-400 mb-1">Total Menu</p>
+            <p id="statTotal" class="text-2xl font-bold text-gray-800">—</p>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <p class="text-xs mb-1" style="color:#065F46">✅ Aktif</p>
+            <p id="statAktif" class="text-2xl font-bold" style="color:#065F46">—</p>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <p class="text-xs mb-1" style="color:#991B1B">❌ Habis</p>
+            <p id="statHabis" class="text-2xl font-bold" style="color:#991B1B">—</p>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <p class="text-xs mb-1" style="color:#F5A623">🔥 Promo</p>
+            <p id="statPromo" class="text-2xl font-bold" style="color:#F5A623">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SEARCH + FILTER ────────────────────────────── -->
+      <div class="px-6 pt-4 flex gap-3">
+        <div class="flex-1 bg-white rounded-xl flex items-center px-4 py-2.5
+                    border border-gray-200">
+          <span class="text-gray-400 mr-2">🔍</span>
+          <input id="searchMenu" type="text" placeholder="Cari nama menu..."
+                 class="flex-1 outline-none text-sm text-gray-700" />
+        </div>
+        <select id="filterKategori"
+                class="bg-white border border-gray-200 rounded-xl px-3 py-2.5
+                       text-sm text-gray-600 outline-none">
+          <option value="semua">Semua Kategori</option>
+          <option value="makanan">🍛 Makanan</option>
+          <option value="minuman">🥤 Minuman</option>
+          <option value="snack">🍿 Snack</option>
+        </select>
+        <select id="filterStatus"
+                class="bg-white border border-gray-200 rounded-xl px-3 py-2.5
+                       text-sm text-gray-600 outline-none">
+          <option value="semua">Semua Status</option>
+          <option value="aktif">Aktif</option>
+          <option value="habis">Habis</option>
+        </select>
+      </div>
+
+      <!-- ── TABLE MENU ─────────────────────────────────── -->
+      <div class="flex-1 px-6 py-4">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+
+          <!-- Table header -->
+          <div class="grid grid-cols-12 gap-3 px-4 py-3 border-b border-gray-50
+                      text-xs font-semibold text-gray-400 uppercase">
+            <div class="col-span-4">Menu</div>
+            <div class="col-span-2">Kategori</div>
+            <div class="col-span-2">Harga</div>
+            <div class="col-span-1 text-center">Terjual</div>
+            <div class="col-span-1 text-center">Stok</div>
+            <div class="col-span-1 text-center">Status</div>
+            <div class="col-span-1 text-center">Aksi</div>
+          </div>
+
+          <!-- Table body -->
+          <div id="menuTableBody" class="divide-y divide-gray-50">
+            <div class="animate-pulse px-4 py-3 space-y-2">
+              <div class="h-4 bg-gray-100 rounded w-2/3"></div>
+              <div class="h-3 bg-gray-100 rounded w-1/3"></div>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div id="emptyMenu" class="hidden text-center py-16">
+            <p class="text-4xl mb-3">🍜</p>
+            <p class="text-gray-500 font-medium">Belum ada menu</p>
+            <p class="text-gray-400 text-sm mt-1">Tambahkan menu pertama kamu</p>
+            <button onclick="document.getElementById('btnTambahMenu').click()"
+                    class="mt-4 text-sm font-semibold px-5 py-2.5 rounded-xl text-white
+                           inline-block"
+                    style="background:#1B6B45">
+              + Tambah Menu
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ── MODAL: TAMBAH / EDIT MENU ────────────────────────── -->
+  <div id="modalMenu"
+       class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+
+      <!-- Header -->
+      <div class="px-5 py-4 flex items-center justify-between border-b border-gray-100">
+        <h3 id="modalTitle" class="font-semibold text-gray-800 text-sm">Tambah Menu</h3>
+        <button id="btnCloseMenuModal" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+      </div>
+
+      <!-- Body -->
+      <div class="flex-1 overflow-y-auto p-5 space-y-4">
+
+        <div id="alertModalError"
+             class="hidden bg-red-50 border border-red-200 text-red-700
+                    px-4 py-3 rounded-lg text-sm"></div>
+
+        <!-- Foto menu -->
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1.5">
+            📷 Foto Menu
+          </label>
+          <div class="flex items-center gap-4">
+            <div id="fotoPreview"
+                 class="w-20 h-20 rounded-xl bg-gray-100 flex items-center
+                        justify-center text-3xl overflow-hidden shrink-0">
+              🍽️
+            </div>
+            <div class="flex-1">
+              <input id="inputFoto" type="file" accept="image/*"
+                     class="hidden" />
+              <button onclick="document.getElementById('inputFoto').click()"
+                      class="text-sm font-medium px-4 py-2 rounded-xl border
+                             border-gray-200 text-gray-600 hover:bg-gray-50 transition">
+                Pilih Foto
+              </button>
+              <p class="text-xs text-gray-400 mt-1">JPG, PNG. Maks 2MB</p>
+              <input id="inputFotoUrl" type="hidden" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Nama menu -->
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1.5">
+            Nama Menu <span class="text-red-500">*</span>
+          </label>
+          <input id="inputNama" type="text" placeholder="contoh: Nasi Goreng Spesial"
+                 class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                        outline-none focus:border-green-500" />
+        </div>
+
+        <!-- Deskripsi -->
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1.5">Deskripsi</label>
+          <textarea id="inputDeskripsi" rows="2"
+                    placeholder="Deskripsi singkat menu..."
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                           outline-none focus:border-green-500 resize-none"></textarea>
+        </div>
+
+        <!-- Kategori + Estimasi -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1.5">
+              Kategori <span class="text-red-500">*</span>
+            </label>
+            <select id="inputKategori"
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2.5
+                           text-sm outline-none focus:border-green-500">
+              <option value="makanan">🍛 Makanan</option>
+              <option value="minuman">🥤 Minuman</option>
+              <option value="snack">🍿 Snack</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1.5">
+              Estimasi Waktu (menit) <span class="text-red-500">*</span>
+            </label>
+            <input id="inputEstimasi" type="number" min="1" max="120"
+                   placeholder="10"
+                   class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                          outline-none focus:border-green-500" />
+          </div>
+        </div>
+
+        <!-- Harga + Stok -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1.5">
+              Harga (Rp) <span class="text-red-500">*</span>
+            </label>
+            <input id="inputHarga" type="number" min="0"
+                   placeholder="15000"
+                   class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                          outline-none focus:border-green-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1.5">
+              Stok <span class="text-red-500">*</span>
+            </label>
+            <input id="inputStok" type="number" min="0"
+                   placeholder="50"
+                   class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                          outline-none focus:border-green-500" />
+          </div>
+        </div>
+
+        <!-- Promo -->
+        <div class="p-4 rounded-xl border border-gray-100">
+          <div class="flex items-center justify-between mb-3">
+            <label class="text-sm font-medium text-gray-700">🔥 Aktifkan Promo</label>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input id="togglePromo" type="checkbox" class="sr-only peer" />
+              <div class="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer
+                          peer-checked:after:translate-x-5 peer-checked:bg-green-600
+                          after:content-[''] after:absolute after:top-0.5 after:left-[2px]
+                          after:bg-white after:rounded-full after:h-4 after:w-4
+                          after:transition-all"></div>
+            </label>
+          </div>
+          <div id="promoFields" class="hidden">
+            <label class="block text-xs font-medium text-gray-500 mb-1.5">
+              Harga Promo (Rp)
+            </label>
+            <input id="inputHargaPromo" type="number" min="0"
+                   placeholder="12000"
+                   class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                          outline-none focus:border-green-500" />
+            <p class="text-xs text-gray-400 mt-1">
+              Harga promo harus lebih rendah dari harga normal
+            </p>
+          </div>
+        </div>
+
+        <!-- Status -->
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1.5">Status</label>
+          <div class="flex gap-3">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="statusMenu" id="radioAktif"
+                     value="aktif" checked
+                     class="accent-green-600" />
+              <span class="text-sm text-gray-700">Aktif</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="statusMenu" id="radioHabis"
+                     value="habis"
+                     class="accent-green-600" />
+              <span class="text-sm text-gray-700">Habis</span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="px-5 py-4 border-t border-gray-100 flex gap-3">
+        <button id="btnBatalModal"
+                class="flex-1 py-2.5 rounded-xl border border-gray-200
+                       text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+          Batal
+        </button>
+        <button id="btnSimpanMenu"
+                class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white
+                       transition hover:opacity-90"
+                style="background:#1B6B45">
+          Simpan Menu
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: KONFIRMASI HAPUS ───────────────────────────── -->
+  <div id="modalHapus"
+       class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-6 text-center">
+      <p class="text-4xl mb-3">🗑️</p>
+      <h3 class="font-semibold text-gray-800 mb-1">Hapus Menu?</h3>
+      <p class="text-sm text-gray-500 mb-5">
+        Menu "<span id="hapusNamaMenu" class="font-semibold"></span>"
+        akan dihapus permanen dan tidak bisa dikembalikan.
+      </p>
+      <div class="flex gap-3">
+        <button id="btnBatalHapus"
+                class="flex-1 py-2.5 rounded-xl border border-gray-200
+                       text-sm font-medium text-gray-600 hover:bg-gray-50">
+          Batal
+        </button>
+        <button id="btnKonfirmasiHapus"
+                class="flex-1 py-2.5 rounded-xl text-sm font-semibold
+                       text-white bg-red-500 hover:bg-red-600 transition">
+          Hapus
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TOAST ─────────────────────────────────────────────── -->
+  <div id="toast"
+       class="hidden fixed top-6 right-6 bg-white shadow-xl rounded-xl px-4 py-3
+              border border-gray-100 z-50 text-sm font-medium text-gray-700">
+  </div>
+
+  <!-- ── LOGIC ──────────────────────────────────────────────── -->
+  <script type="module">
+
+    let currentUser    = null;
+    let currentTenant  = null;
+    let allMenus       = [];
+    let editMenuId     = null;  // null = tambah baru, ada isi = edit
+    let hapusMenuId    = null;
+    let fotoFile       = null;
+    let searchQuery    = '';
+    let filterKategori = 'semua';
+    let filterStatus   = 'semua';
+
+    const KATEGORI_ICON = { makanan: '🍛', minuman: '🥤', snack: '🍿' };
+
+    // ── Helpers
+    function formatRupiah(n) {
+      return 'Rp ' + Number(n).toLocaleString('id-ID');
+    }
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.remove('hidden');
+      setTimeout(() => t.classList.add('hidden'), 2500);
+    }
+    function showModalError(msg) {
+      const el = document.getElementById('alertModalError');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+    function hideModalError() {
+      document.getElementById('alertModalError').classList.add('hidden');
+    }
+
+    // ── INIT
+    window.init = async function (session, profile) {
+      currentUser = { ...session.user, ...profile };
+
+      const { data: tenant } = await window._supabase
+        .from('tenants')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .single();
+
+      currentTenant = tenant;
+      await loadMenus();
+    };
+
+    // ── Load semua menu tenant
+    async function loadMenus() {
+      const { data, error } = await window._supabase
+        .from('menus')
+        .select('*')
+        .eq('tenant_id', currentTenant.id)
+        .order('created_at', { ascending: false });
+
+      if (error) { console.error(error); return; }
+
+      allMenus = data || [];
+      renderStats();
+      renderTable();
+    }
+
+    // ── Render stat cards
+    function renderStats() {
+      const total  = allMenus.length;
+      const aktif  = allMenus.filter(m => m.status === 'aktif').length;
+      const habis  = allMenus.filter(m => m.status === 'habis').length;
+      const promo  = allMenus.filter(m => m.is_promo).length;
+
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statAktif').textContent = aktif;
+      document.getElementById('statHabis').textContent = habis;
+      document.getElementById('statPromo').textContent = promo;
+    }
+
+    // ── Filter & render table
+    function renderTable() {
+      const body  = document.getElementById('menuTableBody');
+      const empty = document.getElementById('emptyMenu');
+      let filtered = [...allMenus];
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter(m => m.nama_menu.toLowerCase().includes(q));
+      }
+      if (filterKategori !== 'semua') {
+        filtered = filtered.filter(m => m.kategori === filterKategori);
+      }
+      if (filterStatus !== 'semua') {
+        filtered = filtered.filter(m => m.status === filterStatus);
+      }
+
+      if (filtered.length === 0) {
+        body.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      body.innerHTML = filtered.map(menu => `
+        <div class="grid grid-cols-12 gap-3 px-4 py-3 items-center
+                    hover:bg-gray-50 transition group">
+
+          <!-- Nama + foto -->
+          <div class="col-span-4 flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-gray-100 overflow-hidden shrink-0
+                        flex items-center justify-center text-xl">
+              ${menu.foto_menu
+                ? `<img src="${menu.foto_menu}" class="w-full h-full object-cover" />`
+                : KATEGORI_ICON[menu.kategori] || '🍽️'}
+            </div>
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-gray-700 truncate">
+                ${menu.nama_menu}
+                ${menu.is_promo ? '<span class="text-xs ml-1" style="color:#F5A623">🔥</span>' : ''}
+              </p>
+              <p class="text-xs text-gray-400 truncate">
+                ${menu.deskripsi || '—'}
+              </p>
+            </div>
+          </div>
+
+          <!-- Kategori -->
+          <div class="col-span-2">
+            <span class="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-600">
+              ${KATEGORI_ICON[menu.kategori]} ${menu.kategori}
+            </span>
+          </div>
+
+          <!-- Harga -->
+          <div class="col-span-2">
+            <p class="text-sm font-semibold" style="color:#1B6B45">
+              ${formatRupiah(menu.harga)}
+            </p>
+            ${menu.is_promo && menu.harga_promo ? `
+              <p class="text-xs" style="color:#F5A623">
+                Promo: ${formatRupiah(menu.harga_promo)}
+              </p>` : ''}
+          </div>
+
+          <!-- Terjual -->
+          <div class="col-span-1 text-center">
+            <span class="text-sm font-semibold text-gray-700">
+              ${menu.total_terjual}
+            </span>
+          </div>
+
+          <!-- Stok -->
+          <div class="col-span-1 text-center">
+            <span class="text-sm font-semibold
+                         ${menu.stok <= 5 ? 'text-red-500' : 'text-gray-700'}">
+              ${menu.stok}
+            </span>
+          </div>
+
+          <!-- Status toggle -->
+          <div class="col-span-1 text-center">
+            <button onclick="toggleStatus('${menu.id}', '${menu.status}')"
+                    class="text-xs font-medium px-2 py-1 rounded-full transition
+                           hover:opacity-80"
+                    style="background:${menu.status === 'aktif' ? '#D1FAE5' : '#FEE2E2'};
+                           color:${menu.status === 'aktif' ? '#065F46' : '#991B1B'}">
+              ${menu.status === 'aktif' ? 'Aktif' : 'Habis'}
+            </button>
+          </div>
+
+          <!-- Aksi -->
+          <div class="col-span-1 flex items-center justify-center gap-1">
+            <button onclick="openEditModal('${menu.id}')"
+                    class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600
+                           hover:bg-blue-100 transition flex items-center justify-center text-sm"
+                    title="Edit">
+              ✏️
+            </button>
+            <button onclick="openHapusModal('${menu.id}', '${menu.nama_menu.replace(/'/g, '\\\'')}')"
+                    class="w-8 h-8 rounded-lg bg-red-50 text-red-500
+                           hover:bg-red-100 transition flex items-center justify-center text-sm"
+                    title="Hapus">
+              🗑
+            </button>
+          </div>
+        </div>`).join('');
+    }
+
+    // ── Toggle status aktif/habis
+    window.toggleStatus = async function (menuId, currentStatus) {
+      const newStatus = currentStatus === 'aktif' ? 'habis' : 'aktif';
+      const { error } = await window._supabase
+        .from('menus')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', menuId);
+
+      if (!error) {
+        const idx = allMenus.findIndex(m => m.id === menuId);
+        if (idx !== -1) allMenus[idx].status = newStatus;
+        renderStats();
+        renderTable();
+        showToast(`Status menu diubah ke ${newStatus}`);
+      } else {
+        showToast('❌ Gagal mengubah status');
+      }
+    };
+
+    // ── Reset form modal
+    function resetForm() {
+      editMenuId = null;
+      fotoFile   = null;
+      document.getElementById('inputNama').value        = '';
+      document.getElementById('inputDeskripsi').value   = '';
+      document.getElementById('inputKategori').value    = 'makanan';
+      document.getElementById('inputEstimasi').value    = '';
+      document.getElementById('inputHarga').value       = '';
+      document.getElementById('inputStok').value        = '';
+      document.getElementById('inputHargaPromo').value  = '';
+      document.getElementById('inputFotoUrl').value     = '';
+      document.getElementById('togglePromo').checked    = false;
+      document.getElementById('promoFields').classList.add('hidden');
+      document.getElementById('radioAktif').checked     = true;
+      document.getElementById('fotoPreview').innerHTML  = '🍽️';
+      document.getElementById('inputFoto').value        = '';
+      hideModalError();
+    }
+
+    // ── Buka modal tambah
+    document.getElementById('btnTambahMenu').addEventListener('click', () => {
+      resetForm();
+      document.getElementById('modalTitle').textContent   = '+ Tambah Menu';
+      document.getElementById('btnSimpanMenu').textContent = 'Simpan Menu';
+      document.getElementById('modalMenu').classList.remove('hidden');
+      document.getElementById('modalMenu').classList.add('flex');
+    });
+
+    // ── Buka modal edit
+    window.openEditModal = function (menuId) {
+      const menu = allMenus.find(m => m.id === menuId);
+      if (!menu) return;
+
+      resetForm();
+      editMenuId = menuId;
+
+      document.getElementById('modalTitle').textContent    = '✏️ Edit Menu';
+      document.getElementById('btnSimpanMenu').textContent = 'Simpan Perubahan';
+      document.getElementById('inputNama').value           = menu.nama_menu;
+      document.getElementById('inputDeskripsi').value      = menu.deskripsi || '';
+      document.getElementById('inputKategori').value       = menu.kategori;
+      document.getElementById('inputEstimasi').value       = menu.estimasi_waktu;
+      document.getElementById('inputHarga').value          = menu.harga;
+      document.getElementById('inputStok').value           = menu.stok;
+      document.getElementById('inputFotoUrl').value        = menu.foto_menu || '';
+
+      if (menu.is_promo && menu.harga_promo) {
+        document.getElementById('togglePromo').checked   = true;
+        document.getElementById('promoFields').classList.remove('hidden');
+        document.getElementById('inputHargaPromo').value = menu.harga_promo;
+      }
+
+      if (menu.status === 'habis') {
+        document.getElementById('radioHabis').checked = true;
+      }
+
+      if (menu.foto_menu) {
+        document.getElementById('fotoPreview').innerHTML =
+          `<img src="${menu.foto_menu}" class="w-full h-full object-cover rounded-xl" />`;
+      }
+
+      document.getElementById('modalMenu').classList.remove('hidden');
+      document.getElementById('modalMenu').classList.add('flex');
+    };
+
+    // ── Preview foto sebelum upload
+    document.getElementById('inputFoto').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (file.size > 2 * 1024 * 1024) {
+        showModalError('Ukuran foto maksimal 2MB');
+        return;
+      }
+
+      fotoFile = file;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        document.getElementById('fotoPreview').innerHTML =
+          `<img src="${ev.target.result}" class="w-full h-full object-cover rounded-xl" />`;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // ── Toggle promo fields
+    document.getElementById('togglePromo').addEventListener('change', (e) => {
+      document.getElementById('promoFields').classList.toggle('hidden', !e.target.checked);
+    });
+
+    // ── Upload foto ke Supabase Storage
+    async function uploadFoto(file) {
+      const ext      = file.name.split('.').pop();
+      const fileName = `${currentTenant.id}/${Date.now()}.${ext}`;
+
+      const { error } = await window._supabase.storage
+        .from('menu-photos')
+        .upload(fileName, file, { upsert: true });
+
+      if (error) throw new Error(`Upload foto gagal: ${error.message}`);
+
+      const { data } = window._supabase.storage
+        .from('menu-photos')
+        .getPublicUrl(fileName);
+
+      return data.publicUrl;
+    }
+
+    // ── Simpan menu (tambah / edit)
+    document.getElementById('btnSimpanMenu').addEventListener('click', async () => {
+      hideModalError();
+
+      const nama      = document.getElementById('inputNama').value.trim();
+      const deskripsi = document.getElementById('inputDeskripsi').value.trim();
+      const kategori  = document.getElementById('inputKategori').value;
+      const estimasi  = parseInt(document.getElementById('inputEstimasi').value);
+      const harga     = parseInt(document.getElementById('inputHarga').value);
+      const stok      = parseInt(document.getElementById('inputStok').value);
+      const isPromo   = document.getElementById('togglePromo').checked;
+      const hargaPromo = parseInt(document.getElementById('inputHargaPromo').value) || null;
+      const status    = document.querySelector('input[name="statusMenu"]:checked').value;
+      const btn       = document.getElementById('btnSimpanMenu');
+
+      // Validasi
+      if (!nama) { showModalError('Nama menu wajib diisi'); return; }
+      if (!harga || harga <= 0) { showModalError('Harga harus lebih dari 0'); return; }
+      if (isNaN(stok) || stok < 0) { showModalError('Stok tidak valid'); return; }
+      if (!estimasi || estimasi <= 0) { showModalError('Estimasi waktu wajib diisi'); return; }
+      if (isPromo && hargaPromo && hargaPromo >= harga) {
+        showModalError('Harga promo harus lebih rendah dari harga normal');
+        return;
+      }
+
+      btn.disabled    = true;
+      btn.textContent = 'Menyimpan...';
+
+      try {
+        // Upload foto jika ada file baru
+        let fotoUrl = document.getElementById('inputFotoUrl').value || null;
+        if (fotoFile) {
+          fotoUrl = await uploadFoto(fotoFile);
+        }
+
+        const payload = {
+          nama_menu:      nama,
+          deskripsi:      deskripsi || null,
+          kategori,
+          estimasi_waktu: estimasi,
+          harga,
+          stok,
+          status,
+          is_promo:       isPromo,
+          harga_promo:    isPromo ? hargaPromo : null,
+          foto_menu:      fotoUrl,
+          updated_at:     new Date().toISOString()
+        };
+
+        if (editMenuId) {
+          // UPDATE
+          const { error } = await window._supabase
+            .from('menus')
+            .update(payload)
+            .eq('id', editMenuId);
+
+          if (error) throw error;
+          showToast('✅ Menu berhasil diperbarui');
+
+        } else {
+          // INSERT
+          const { error } = await window._supabase
+            .from('menus')
+            .insert({ ...payload, tenant_id: currentTenant.id });
+
+          if (error) throw error;
+          showToast('✅ Menu berhasil ditambahkan');
+        }
+
+        closeMenuModal();
+        await loadMenus();
+
+      } catch (err) {
+        console.error(err);
+        showModalError(err.message || 'Gagal menyimpan menu');
+      } finally {
+        btn.disabled    = false;
+        btn.textContent = editMenuId ? 'Simpan Perubahan' : 'Simpan Menu';
+      }
+    });
+
+    // ── Close modal menu
+    function closeMenuModal() {
+      document.getElementById('modalMenu').classList.add('hidden');
+      document.getElementById('modalMenu').classList.remove('flex');
+      resetForm();
+    }
+    document.getElementById('btnCloseMenuModal').addEventListener('click', closeMenuModal);
+    document.getElementById('btnBatalModal').addEventListener('click', closeMenuModal);
+
+    // ── Buka modal hapus
+    window.openHapusModal = function (menuId, nama) {
+      hapusMenuId = menuId;
+      document.getElementById('hapusNamaMenu').textContent = nama;
+      document.getElementById('modalHapus').classList.remove('hidden');
+      document.getElementById('modalHapus').classList.add('flex');
+    };
+
+    // ── Konfirmasi hapus
+    document.getElementById('btnKonfirmasiHapus').addEventListener('click', async () => {
+      if (!hapusMenuId) return;
+
+      const btn = document.getElementById('btnKonfirmasiHapus');
+      btn.disabled    = true;
+      btn.textContent = 'Menghapus...';
+
+      const { error } = await window._supabase
+        .from('menus')
+        .delete()
+        .eq('id', hapusMenuId);
+
+      if (!error) {
+        allMenus = allMenus.filter(m => m.id !== hapusMenuId);
+        renderStats();
+        renderTable();
+        showToast('🗑️ Menu berhasil dihapus');
+      } else {
+        showToast('❌ Gagal menghapus menu');
+      }
+
+      hapusMenuId     = null;
+      btn.disabled    = false;
+      btn.textContent = 'Hapus';
+      document.getElementById('modalHapus').classList.add('hidden');
+      document.getElementById('modalHapus').classList.remove('flex');
+    });
+
+    document.getElementById('btnBatalHapus').addEventListener('click', () => {
+      hapusMenuId = null;
+      document.getElementById('modalHapus').classList.add('hidden');
+      document.getElementById('modalHapus').classList.remove('flex');
+    });
+
+    // ── Search
+    let searchTimeout;
+    document.getElementById('searchMenu').addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        searchQuery = e.target.value;
+        renderTable();
+      }, 300);
+    });
+
+    // ── Filter kategori & status
+    document.getElementById('filterKategori').addEventListener('change', (e) => {
+      filterKategori = e.target.value;
+      renderTable();
+    });
+    document.getElementById('filterStatus').addEventListener('change', (e) => {
+      filterStatus = e.target.value;
+      renderTable();
+    });
+
+    // ── Logout
+    document.getElementById('btnLogout').addEventListener('click', async () => {
+      await window._supabase.auth.signOut();
+      window.location.replace('/pages/auth/login.html');
+    });
+
+  </script>
+</body>
+</html>
