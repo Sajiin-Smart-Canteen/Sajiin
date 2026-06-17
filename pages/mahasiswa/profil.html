@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profil Saya — Smart Canteen</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__SUPABASE_URL__ = 'https://qeilvipuxxtbjfhioefd.supabase.co';
+    window.__SUPABASE_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaWx2aXB1eHh0YmpmaGlvZWZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDExMDAsImV4cCI6MjA5NjYxNzEwMH0.iDrj8fmcbuiJrv-mSOu9XYUrCYLv_Gga-vFQ12G5Pys';
+    window._supabase = window.supabase.createClient(
+      window.__SUPABASE_URL__,
+      window.__SUPABASE_KEY__
+    );
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#1B6B45', light: '#2D9362', dark: '#134E33' },
+            secondary: { DEFAULT: '#F5A623' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- ── SESSION GUARD ─────────────────────────────────── -->
+  <script>
+    window._supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        window.location.replace('/pages/auth/login.html');
+        return;
+      }
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        const { data: profile } = await window._supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        if (!profile || profile.role !== 'mahasiswa') {
+          window.location.replace('/pages/auth/login.html');
+          return;
+        }
+        if (typeof init === 'function') init(session, profile);
+      }
+    });
+  </script>
+
+  <div class="flex min-h-screen">
+
+    <!-- ── SIDEBAR ───────────────────────────────────────── -->
+    <aside class="fixed top-0 left-0 h-full w-60 flex flex-col z-30"
+           style="background:#1B6B45">
+      <div class="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+        <div class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg">🍽️</div>
+        <div>
+          <p class="text-white font-bold text-sm leading-tight">Smart Canteen</p>
+          <p class="text-white/50 text-xs">Student Portal</p>
+        </div>
+      </div>
+      <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>📊</span> Dashboard
+        </a>
+        <a href="kantin.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🏪</span> Daftar Kantin
+        </a>
+        <a href="menu.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🍜</span> Pesan Makanan
+        </a>
+        <a href="pesanan.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>📦</span> Pesanan Saya
+        </a>
+        <a href="booking.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🪑</span> Booking Meja
+        </a>
+        <a href="profil.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition" style="background:rgba(255,255,255,0.15); color:white">
+          <span>👤</span> Profil Saya
+        </a>
+      </nav>
+      <div class="px-3 py-4 border-t border-white/10">
+        <button id="btnLogout" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🚪</span> Keluar
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── MAIN ───────────────────────────────────────────── -->
+    <main class="flex-1 ml-60 flex flex-col min-h-screen">
+
+      <!-- ── TOPBAR ───────────────────────────────────────── -->
+      <header class="sticky top-0 z-20 bg-white border-b border-gray-100
+                     px-6 py-3 flex items-center justify-between">
+        <div>
+          <h2 class="font-semibold text-gray-800 text-sm">👤 Profil Saya</h2>
+          <p class="text-xs text-gray-400">Kelola informasi akun dan preferensi kamu</p>
+        </div>
+      </header>
+
+      <!-- ── BODY ───────────────────────────────────────────── -->
+      <div class="flex-1 p-6 space-y-6">
+
+        <!-- Profile Header Card -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div class="flex items-center gap-4">
+            <div class="relative">
+              <div id="avatarCircle"
+                   class="w-20 h-20 rounded-full flex items-center justify-center
+                          text-white text-2xl font-bold"
+                   style="background:#1B6B45">?</div>
+              <span class="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white
+                          border-2 border-gray-100 flex items-center justify-center text-sm">
+                🎓
+              </span>
+            </div>
+            <div class="flex-1">
+              <h2 id="profileName" class="text-lg font-bold text-gray-800">—</h2>
+              <p id="profileEmail" class="text-sm text-gray-400">—</p>
+              <div class="flex items-center gap-3 mt-2">
+                <span class="text-xs font-medium px-2.5 py-1 rounded-full"
+                      style="background:#F0FAF5; color:#1B6B45">
+                  🎓 <span id="profileProdi">—</span>
+                </span>
+                <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
+                  Angkatan <span id="profileAngkatan">—</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stat Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-medium text-gray-500">Total Pesanan</span>
+              <span class="text-lg">📦</span>
+            </div>
+            <p id="statTotalPesanan" class="text-2xl font-bold text-gray-800">—</p>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-medium text-gray-500">Total Belanja</span>
+              <span class="text-lg">💰</span>
+            </div>
+            <p id="statTotalBelanja" class="text-2xl font-bold" style="color:#1B6B45">—</p>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-medium text-gray-500">Booking Meja</span>
+              <span class="text-lg">🪑</span>
+            </div>
+            <p id="statTotalBooking" class="text-2xl font-bold text-gray-800">—</p>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-medium text-gray-500">Bergabung Sejak</span>
+              <span class="text-lg">📅</span>
+            </div>
+            <p id="statBergabung" class="text-lg font-bold text-gray-800">—</p>
+          </div>
+        </div>
+
+        <!-- Form Edit Profil -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <div class="px-5 py-4 border-b border-gray-50">
+            <h3 class="font-semibold text-gray-800 text-sm">✏️ Edit Informasi Profil</h3>
+          </div>
+          <div class="p-5 space-y-4">
+
+            <div id="alertSuccess" class="hidden bg-green-50 border border-green-200
+                 text-green-700 px-4 py-3 rounded-lg text-sm">
+              ✅ Profil berhasil diperbarui
+            </div>
+            <div id="alertError" class="hidden bg-red-50 border border-red-200
+                 text-red-700 px-4 py-3 rounded-lg text-sm"></div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">Nama Lengkap</label>
+                <input id="inputNama" type="text"
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                              outline-none focus:border-green-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">Email</label>
+                <input id="inputEmail" type="email" disabled
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                              bg-gray-50 text-gray-400 cursor-not-allowed" />
+                <p class="text-xs text-gray-400 mt-1">Email tidak dapat diubah</p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">NIM</label>
+                <input id="inputNim" type="text"
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                              outline-none focus:border-green-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">Program Studi</label>
+                <input id="inputProdi" type="text" placeholder="contoh: Informatika"
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                              outline-none focus:border-green-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">Angkatan</label>
+                <input id="inputAngkatan" type="number" placeholder="contoh: 2024"
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                              outline-none focus:border-green-500" />
+              </div>
+            </div>
+
+            <button id="btnSimpan"
+                    class="text-white rounded-xl px-6 py-2.5 font-semibold text-sm
+                           transition hover:opacity-90"
+                    style="background:#1B6B45">
+              💾 Simpan Perubahan
+            </button>
+          </div>
+        </div>
+
+        <!-- Ganti Password -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <div class="px-5 py-4 border-b border-gray-50">
+            <h3 class="font-semibold text-gray-800 text-sm">🔒 Ubah Password</h3>
+          </div>
+          <div class="p-5 space-y-4">
+
+            <div id="alertPwdSuccess" class="hidden bg-green-50 border border-green-200
+                 text-green-700 px-4 py-3 rounded-lg text-sm">
+              ✅ Password berhasil diubah
+            </div>
+            <div id="alertPwdError" class="hidden bg-red-50 border border-red-200
+                 text-red-700 px-4 py-3 rounded-lg text-sm"></div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">Password Baru</label>
+                <input id="inputPwdBaru" type="password" placeholder="Minimal 6 karakter"
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                              outline-none focus:border-green-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">Konfirmasi Password</label>
+                <input id="inputPwdKonfirmasi" type="password" placeholder="Ulangi password baru"
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                              outline-none focus:border-green-500" />
+              </div>
+            </div>
+
+            <button id="btnUbahPwd"
+                    class="text-white rounded-xl px-6 py-2.5 font-semibold text-sm
+                           transition hover:opacity-90"
+                    style="background:#1B6B45">
+              🔑 Ubah Password
+            </button>
+          </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="bg-white rounded-2xl border border-red-100 shadow-sm">
+          <div class="px-5 py-4 border-b border-red-50">
+            <h3 class="font-semibold text-red-600 text-sm">⚠️ Zona Berbahaya</h3>
+          </div>
+          <div class="p-5 flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-700">Keluar dari Akun</p>
+              <p class="text-xs text-gray-400">Anda akan keluar dari sesi saat ini</p>
+            </div>
+            <button id="btnLogout2"
+                    class="text-sm font-semibold px-4 py-2 rounded-xl border border-red-200
+                           text-red-600 hover:bg-red-50 transition">
+              Keluar
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ── LOGIC ──────────────────────────────────────────────── -->
+<script type="module">
+
+  let currentUser = null;
+
+  function formatRupiah(n) {
+    return 'Rp ' + Number(n).toLocaleString('id-ID');
+  }
+
+  function showAlert(id, msg = null) {
+    // Sembunyikan semua alert dulu
+    ['alertSuccess','alertError','alertPwdSuccess','alertPwdError'].forEach(x => {
+      document.getElementById(x)?.classList.add('hidden');
+    });
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (msg) el.textContent = msg;
+    el.classList.remove('hidden');
+    setTimeout(() => el.classList.add('hidden'), 3000);
+  }
+
+  // ── INIT
+  window.init = async function (session, profile) {
+    currentUser = { ...session.user, ...profile };
+    await loadProfile();
+    await loadStats();
+  };
+
+  // ── Load profile & render ke semua elemen
+  async function loadProfile() {
+    // 1. Ambil data profiles terbaru dari DB (bukan dari session)
+    const { data: profile, error: profileError } = await window._supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', currentUser.id)
+      .single();
+
+    if (profileError || !profile) return;
+
+    // 2. Ambil mahasiswa_profiles
+    const { data: mhs } = await window._supabase
+      .from('mahasiswa_profiles')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .single();
+
+    // ── Render header profil
+    document.getElementById('profileName').textContent  = profile.full_name;
+    document.getElementById('profileEmail').textContent = profile.email;
+    document.getElementById('avatarCircle').textContent =
+      profile.full_name.charAt(0).toUpperCase();
+
+    document.getElementById('profileProdi').textContent =
+      mhs?.program_studi || 'Belum diisi';
+    document.getElementById('profileAngkatan').textContent =
+      mhs?.angkatan || '—';
+
+    document.getElementById('statBergabung').textContent =
+      new Date(profile.created_at).toLocaleDateString('id-ID', {
+        month: 'short', year: 'numeric'
+      });
+
+    // ── Isi form dengan data terkini dari DB
+    document.getElementById('inputNama').value     = profile.full_name || '';
+    document.getElementById('inputEmail').value    = profile.email || '';
+    document.getElementById('inputNim').value      = mhs?.nim || '';
+    document.getElementById('inputProdi').value    = mhs?.program_studi || '';
+    document.getElementById('inputAngkatan').value = mhs?.angkatan || '';
+  }
+
+  // ── Load statistik
+  async function loadStats() {
+    const { data: orders } = await window._supabase
+      .from('orders')
+      .select('total_harga, status')
+      .eq('mahasiswa_id', currentUser.id);
+
+    const totalPesanan = orders?.length || 0;
+    const totalBelanja = orders
+      ?.filter(o => o.status === 'selesai')
+      .reduce((s, o) => s + o.total_harga, 0) || 0;
+
+    const { count: totalBooking } = await window._supabase
+      .from('table_bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('mahasiswa_id', currentUser.id);
+
+    document.getElementById('statTotalPesanan').textContent = totalPesanan;
+    document.getElementById('statTotalBelanja').textContent = formatRupiah(totalBelanja);
+    document.getElementById('statTotalBooking').textContent = totalBooking || 0;
+  }
+
+document.getElementById('btnSimpan').addEventListener('click', async () => {
+  const btn         = document.getElementById('btnSimpan');
+  const namaLengkap = document.getElementById('inputNama').value.trim();
+  const nim         = document.getElementById('inputNim').value.trim();
+  const prodi       = document.getElementById('inputProdi').value.trim();
+  const angkatan    = document.getElementById('inputAngkatan').value.trim();
+
+  if (!namaLengkap) {
+    showAlert('alertError', 'Nama lengkap tidak boleh kosong');
+    return;
+  }
+
+  btn.disabled    = true;
+  btn.textContent = 'Menyimpan...';
+
+  try {
+    // 1. Update tabel profiles
+    const { error: profileError } = await window._supabase
+      .from('profiles')
+      .update({
+        full_name:  namaLengkap,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', currentUser.id);
+
+    if (profileError) throw new Error(`profiles: ${profileError.message}`);
+
+    // 2. Cek apakah mahasiswa_profiles sudah ada
+    const { data: existing } = await window._supabase
+      .from('mahasiswa_profiles')
+      .select('id')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+
+    if (existing) {
+      // UPDATE jika sudah ada
+      const { error: updateError } = await window._supabase
+        .from('mahasiswa_profiles')
+        .update({
+          nim:           nim || null,
+          program_studi: prodi || null,
+          angkatan:      angkatan ? parseInt(angkatan) : null
+        })
+        .eq('user_id', currentUser.id);
+
+      if (updateError) throw new Error(`update: ${updateError.message}`);
+
+    } else {
+      // INSERT jika belum ada
+      const { error: insertError } = await window._supabase
+        .from('mahasiswa_profiles')
+        .insert({
+          user_id:       currentUser.id,
+          nim:           nim || null,
+          program_studi: prodi || null,
+          angkatan:      angkatan ? parseInt(angkatan) : null
+        });
+
+      if (insertError) throw new Error(`insert: ${insertError.message}`);
+    }
+
+    // 3. Reload dari DB agar UI sinkron
+    await loadProfile();
+    showAlert('alertSuccess');
+
+  } catch (err) {
+    console.error('Simpan error:', err);
+    showAlert('alertError', err.message || 'Gagal menyimpan perubahan');
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '💾 Simpan Perubahan';
+  }
+});
+
+  // ── Ubah password
+  document.getElementById('btnUbahPwd').addEventListener('click', async () => {
+    const btn     = document.getElementById('btnUbahPwd');
+    const pwdBaru = document.getElementById('inputPwdBaru').value;
+    const pwdKonf = document.getElementById('inputPwdKonfirmasi').value;
+
+    if (pwdBaru.length < 6) {
+      showAlert('alertPwdError', 'Password minimal 6 karakter');
+      return;
+    }
+    if (pwdBaru !== pwdKonf) {
+      showAlert('alertPwdError', 'Konfirmasi password tidak cocok');
+      return;
+    }
+
+    btn.disabled    = true;
+    btn.textContent = 'Memproses...';
+
+    try {
+      const { error } = await window._supabase.auth.updateUser({ password: pwdBaru });
+      if (error) throw error;
+
+      document.getElementById('inputPwdBaru').value        = '';
+      document.getElementById('inputPwdKonfirmasi').value  = '';
+      showAlert('alertPwdSuccess');
+
+    } catch (err) {
+      showAlert('alertPwdError', err.message || 'Gagal mengubah password');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = '🔑 Ubah Password';
+    }
+  });
+
+  // ── Logout
+  async function doLogout() {
+    await window._supabase.auth.signOut();
+    window.location.replace('/pages/auth/login.html');
+  }
+  document.getElementById('btnLogout').addEventListener('click', doLogout);
+  document.getElementById('btnLogout2').addEventListener('click', doLogout);
+
+</script>
+</body>
+</html>
