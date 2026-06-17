@@ -1,1 +1,427 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico.png">
+  <title>Daftar — Smart Canteen</title>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__SUPABASE_URL__ = 'https://qeilvipuxxtbjfhioefd.supabase.co';
+    window.__SUPABASE_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaWx2aXB1eHh0YmpmaGlvZWZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDExMDAsImV4cCI6MjA5NjYxNzEwMH0.iDrj8fmcbuiJrv-mSOu9XYUrCYLv_Gga-vFQ12G5Pys';
+    window._supabase = window.supabase.createClient(
+      window.__SUPABASE_URL__, 
+      window.__SUPABASE_KEY__
+    );
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#1B6B45', light: '#2D9362', dark: '#134E33' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="min-h-screen flex items-center justify-center py-10"
+      style="background: linear-gradient(135deg, #f0faf5 0%, #e8f5ee 100%)">
+
+  <!-- ── SESSION GUARD ─────────────────────────────────── -->
+  <script type="module">
+    const { data: { session } } = await window._supabase.auth.getSession();
+    if (session) {
+      const { data: profile } = await window._supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profile) {
+        window.location.replace(
+          profile.role === 'tenant'
+            ? '/pages/tenant/dashboard.html'
+            : '/pages/mahasiswa/dashboard.html'
+        );
+      }
+    }
+  </script>
+
+  <!-- ── CARD ──────────────────────────────────────────── -->
+  <div class="w-full max-w-sm mx-4">
+
+    <!-- Logo -->
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-2"
+           style="background:#1B6B45">
+        <span class="text-white text-2xl">🍽️</span>
+      </div>
+      <h1 class="text-xl font-bold" style="color:#1B6B45">Smart Canteen</h1>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+      <h2 class="text-xl font-semibold text-gray-800 mb-1">Buat Akun</h2>
+      <p class="text-gray-400 text-sm mb-5">
+        Pilih role Anda untuk melanjutkan
+      </p>
+
+      <!-- ── Role Selector ──────────────────────────────── -->
+      <div class="grid grid-cols-2 gap-3 mb-5">
+        <button id="btnRoleMahasiswa" onclick="selectRole('mahasiswa')"
+                class="role-btn rounded-xl p-3 text-center transition border-2 cursor-pointer"
+                style="border-color:#1B6B45; background:#F0FAF5">
+          <div class="text-2xl mb-1">🎓</div>
+          <div class="text-sm font-semibold" style="color:#1B6B45">Mahasiswa</div>
+        </button>
+        <button id="btnRoleTenant" onclick="selectRole('tenant')"
+                class="role-btn rounded-xl p-3 text-center transition border-2 cursor-pointer border-gray-200 bg-white">
+          <div class="text-2xl mb-1">🏪</div>
+          <div class="text-sm font-semibold text-gray-400">Penjual Kantin</div>
+        </button>
+      </div>
+
+      <!-- Alert Error -->
+      <div id="alertError"
+           class="hidden items-center gap-2 bg-red-50 border border-red-200 
+                  text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+        <span>⚠️</span>
+        <span id="alertErrorMsg"></span>
+      </div>
+
+      <!-- Alert Success -->
+      <div id="alertSuccess"
+           class="hidden items-center gap-2 bg-green-50 border border-green-200 
+                  text-green-700 px-4 py-3 rounded-lg text-sm mb-4">
+        <span>✅</span>
+        <span id="alertSuccessMsg"></span>
+      </div>
+
+      <!-- ── Form Fields ────────────────────────────────── -->
+      <div class="space-y-3">
+
+        <!-- Nama Lengkap -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">
+            Nama Lengkap
+          </label>
+          <input id="inputName" type="text" 
+                 placeholder="Masukkan nama lengkap"
+                 class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm 
+                        outline-none transition focus:border-green-600 focus:ring-2 
+                        focus:ring-green-100" />
+        </div>
+
+        <!-- Email -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">
+            Email
+          </label>
+          <input id="inputEmail" type="email" 
+                 placeholder="email@kampus.ac.id"
+                 class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm 
+                        outline-none transition focus:border-green-600 focus:ring-2 
+                        focus:ring-green-100" />
+        </div>
+
+        <!-- NIM — hanya muncul saat role mahasiswa -->
+        <div id="fieldNIM">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">
+            NIM
+          </label>
+          <input id="inputNIM" type="text" 
+                 placeholder="Nomor Induk Mahasiswa"
+                 class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm 
+                        outline-none transition focus:border-green-600 focus:ring-2 
+                        focus:ring-green-100" />
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">
+            Password
+          </label>
+          <div class="relative">
+            <input id="inputPassword" type="password" 
+                   placeholder="Minimal 6 karakter"
+                   class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm 
+                          outline-none transition focus:border-green-600 focus:ring-2 
+                          focus:ring-green-100 pr-12" />
+            <button id="btnTogglePwd" type="button"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 
+                           text-gray-400 hover:text-gray-600 text-lg">
+              👁
+            </button>
+          </div>
+          <!-- Password strength bar -->
+          <div class="mt-2 h-1 rounded-full bg-gray-100 overflow-hidden">
+            <div id="strengthBar" class="h-full rounded-full transition-all duration-300"
+                 style="width:0%; background:#1B6B45"></div>
+          </div>
+          <p id="strengthLabel" class="text-xs text-gray-400 mt-1"></p>
+        </div>
+
+        <!-- Konfirmasi Password -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">
+            Konfirmasi Password
+          </label>
+          <input id="inputConfirm" type="password" 
+                 placeholder="Ulangi password"
+                 class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm 
+                        outline-none transition focus:border-green-600 focus:ring-2 
+                        focus:ring-green-100" />
+          <p id="matchMsg" class="text-xs mt-1 hidden"></p>
+        </div>
+
+        <!-- Submit -->
+        <button id="btnRegister"
+                class="w-full text-white font-semibold rounded-xl py-3 text-sm 
+                       transition hover:opacity-90 active:scale-95 mt-1"
+                style="background:#1B6B45">
+          Daftar sebagai Mahasiswa
+        </button>
+
+      </div>
+
+      <p class="text-center text-sm text-gray-500 mt-4">
+        Sudah punya akun?
+        <a href="login.html" class="font-semibold hover:underline"
+           style="color:#1B6B45">
+          Masuk
+        </a>
+      </p>
+    </div>
+
+  </div>
+
+  <!-- ── ROLE SELECTOR LOGIC (non-module) ──────────────── -->
+  <script>
+    let currentRole = 'mahasiswa';
+
+    function selectRole(role) {
+      currentRole = role;
+
+      const btnMhs    = document.getElementById('btnRoleMahasiswa');
+      const btnTenant = document.getElementById('btnRoleTenant');
+      const fieldNIM  = document.getElementById('fieldNIM');
+      const btnReg    = document.getElementById('btnRegister');
+
+      if (role === 'mahasiswa') {
+        // Aktifkan tombol mahasiswa
+        btnMhs.style.borderColor  = '#1B6B45';
+        btnMhs.style.background   = '#F0FAF5';
+        btnMhs.querySelector('div:last-child').style.color = '#1B6B45';
+        // Reset tombol tenant
+        btnTenant.style.borderColor = '#E5E7EB';
+        btnTenant.style.background  = 'white';
+        btnTenant.querySelector('div:last-child').style.color = '#9CA3AF';
+        // Tampilkan field NIM
+        fieldNIM.style.display = 'block';
+        btnReg.textContent = 'Daftar sebagai Mahasiswa';
+
+      } else {
+        // Aktifkan tombol tenant
+        btnTenant.style.borderColor = '#1B6B45';
+        btnTenant.style.background  = '#F0FAF5';
+        btnTenant.querySelector('div:last-child').style.color = '#1B6B45';
+        // Reset tombol mahasiswa
+        btnMhs.style.borderColor = '#E5E7EB';
+        btnMhs.style.background  = 'white';
+        btnMhs.querySelector('div:last-child').style.color = '#9CA3AF';
+        // Sembunyikan NIM
+        fieldNIM.style.display = 'none';
+        btnReg.textContent = 'Daftar sebagai Penjual';
+      }
+    }
+  </script>
+
+  <!-- ── LOGIC ──────────────────────────────────────────── -->
+  <script type="module">
+
+    // ── Toggle password
+    document.getElementById('btnTogglePwd').addEventListener('click', () => {
+      const input = document.getElementById('inputPassword');
+      const btn   = document.getElementById('btnTogglePwd');
+      const isHidden = input.type === 'password';
+      input.type      = isHidden ? 'text' : 'password';
+      btn.textContent = isHidden ? '🙈' : '👁';
+    });
+
+    // ── Password strength indicator
+    document.getElementById('inputPassword').addEventListener('input', (e) => {
+      const val = e.target.value;
+      const bar = document.getElementById('strengthBar');
+      const lbl = document.getElementById('strengthLabel');
+
+      let strength = 0;
+      if (val.length >= 6)  strength++;
+      if (val.length >= 10) strength++;
+      if (/[A-Z]/.test(val) && /[0-9]/.test(val)) strength++;
+
+      const map = [
+        { width: '0%',   color: '#E5E7EB', label: '' },
+        { width: '33%',  color: '#EF4444', label: 'Lemah' },
+        { width: '66%',  color: '#F5A623', label: 'Sedang' },
+        { width: '100%', color: '#1B6B45', label: 'Kuat' },
+      ];
+
+      bar.style.width      = map[strength].width;
+      bar.style.background = map[strength].color;
+      lbl.textContent      = map[strength].label;
+      lbl.style.color      = map[strength].color;
+    });
+
+    // ── Cek password match live
+    document.getElementById('inputConfirm').addEventListener('input', () => {
+      const pwd     = document.getElementById('inputPassword').value;
+      const confirm = document.getElementById('inputConfirm').value;
+      const msg     = document.getElementById('matchMsg');
+
+      if (!confirm) { msg.classList.add('hidden'); return; }
+
+      msg.classList.remove('hidden');
+      if (pwd === confirm) {
+        msg.textContent  = '✓ Password cocok';
+        msg.style.color  = '#1B6B45';
+      } else {
+        msg.textContent  = '✗ Password tidak cocok';
+        msg.style.color  = '#EF4444';
+      }
+    });
+
+    // ── Alert helpers
+    function showError(msg) {
+      const el = document.getElementById('alertError');
+      document.getElementById('alertErrorMsg').textContent = msg;
+      el.classList.remove('hidden');
+      el.classList.add('flex');
+      document.getElementById('alertSuccess').classList.add('hidden');
+    }
+
+    function showSuccess(msg) {
+      const el = document.getElementById('alertSuccess');
+      document.getElementById('alertSuccessMsg').textContent = msg;
+      el.classList.remove('hidden');
+      el.classList.add('flex');
+      document.getElementById('alertError').classList.add('hidden');
+    }
+
+    function hideAlerts() {
+      document.getElementById('alertError').classList.add('hidden');
+      document.getElementById('alertSuccess').classList.add('hidden');
+    }
+
+    function setLoading(isLoading) {
+      const btn = document.getElementById('btnRegister');
+      btn.disabled    = isLoading;
+      btn.style.opacity = isLoading ? '0.7' : '1';
+      if (isLoading) {
+        btn.textContent = 'Memproses...';
+      } else {
+        btn.textContent = currentRole === 'mahasiswa'
+          ? 'Daftar sebagai Mahasiswa'
+          : 'Daftar sebagai Penjual';
+      }
+    }
+
+    // ── Proses register
+    async function doRegister() {
+      hideAlerts();
+
+      const fullName = document.getElementById('inputName').value.trim();
+      const email    = document.getElementById('inputEmail').value.trim();
+      const nim      = document.getElementById('inputNIM').value.trim();
+      const password = document.getElementById('inputPassword').value;
+      const confirm  = document.getElementById('inputConfirm').value;
+
+      // ── Validasi
+      if (!fullName) { showError('Nama lengkap wajib diisi'); return; }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showError('Format email tidak valid'); return;
+      }
+
+      if (currentRole === 'mahasiswa' && !nim) {
+        showError('NIM wajib diisi untuk akun mahasiswa'); return;
+      }
+
+      if (password.length < 6) {
+        showError('Password minimal 6 karakter'); return;
+      }
+
+      if (password !== confirm) {
+        showError('Password dan konfirmasi password tidak cocok'); return;
+      }
+
+      setLoading(true);
+
+      try {
+        // 1. Buat akun di Supabase Auth
+        const { data, error } = await window._supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+              role: currentRole
+            }
+          }
+        });
+
+        if (error) throw error;
+
+        const userId = data.user.id;
+
+        // 2. Buat profile tambahan sesuai role
+        if (currentRole === 'mahasiswa') {
+          const { error: mhsError } = await window._supabase
+            .from('mahasiswa_profiles')
+            .insert({ user_id: userId, nim });
+
+          if (mhsError) throw mhsError;
+
+        } else {
+          const { error: tenantError } = await window._supabase
+            .from('tenants')
+            .insert({ user_id: userId, nama_toko: fullName });
+
+          if (tenantError) throw tenantError;
+        }
+
+        // 3. Tampilkan sukses
+        showSuccess(
+          'Pendaftaran berhasil! Silakan cek email untuk verifikasi, lalu login.'
+        );
+
+        // Redirect ke login setelah 3 detik
+        setTimeout(() => {
+          window.location.href = 'login.html';
+        }, 3000);
+
+      } catch (err) {
+        const msg = err.message?.includes('already registered')
+          ? 'Email sudah terdaftar, silakan login'
+          : err.message?.includes('Password should be')
+          ? 'Password terlalu lemah'
+          : err.message || 'Terjadi kesalahan, coba lagi';
+
+        showError(msg);
+        setLoading(false);
+      }
+    }
+
+    // ── Event listeners
+    document.getElementById('btnRegister').addEventListener('click', doRegister);
+
+    document.getElementById('inputConfirm').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') doRegister();
+    });
+
+  </script>
+</body>
+</html>
