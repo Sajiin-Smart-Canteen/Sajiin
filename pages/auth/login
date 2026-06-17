@@ -1,1 +1,251 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico.png">
+  <title>Masuk — Smart Canteen</title>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__SUPABASE_URL__ = 'https://qeilvipuxxtbjfhioefd.supabase.co';
+    window.__SUPABASE_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaWx2aXB1eHh0YmpmaGlvZWZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDExMDAsImV4cCI6MjA5NjYxNzEwMH0.iDrj8fmcbuiJrv-mSOu9XYUrCYLv_Gga-vFQ12G5Pys';
+    window._supabase = window.supabase.createClient(
+      window.__SUPABASE_URL__, 
+      window.__SUPABASE_KEY__
+    );
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#1B6B45', light: '#2D9362', dark: '#134E33' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="min-h-screen flex items-center justify-center" 
+      style="background: linear-gradient(135deg, #f0faf5 0%, #e8f5ee 100%)">
+
+  <!-- ── SESSION GUARD ─────────────────────────────────── -->
+  <script type="module">
+    // Jika sudah login, langsung redirect — tidak perlu masuk lagi
+    const { data: { session } } = await window._supabase.auth.getSession();
+    if (session) {
+      const { data: profile } = await window._supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profile) {
+        window.location.replace(
+          profile.role === 'tenant'
+            ? '/pages/tenant/dashboard.html'
+            : '/pages/mahasiswa/dashboard.html'
+        );
+      }
+    }
+  </script>
+
+  <!-- ── CARD ──────────────────────────────────────────── -->
+  <div class="w-full max-w-sm mx-4">
+
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3"
+           style="background:#1B6B45">
+        <span class="text-white text-3xl">🍽️</span>
+      </div>
+      <h1 class="text-2xl font-bold" style="color:#1B6B45">Smart Canteen</h1>
+      <p class="text-gray-500 text-sm mt-1">Pesan makanan, tanpa antre</p>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+      <h2 class="text-xl font-semibold text-gray-800 mb-1">Selamat Datang Kembali</h2>
+      <p class="text-gray-400 text-sm mb-6">Masuk ke akun Anda</p>
+
+      <!-- Alert Error -->
+      <div id="alertError"
+           class="hidden items-center gap-2 bg-red-50 border border-red-200 
+                  text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+        <span>⚠️</span>
+        <span id="alertErrorMsg"></span>
+      </div>
+
+      <!-- Form Fields -->
+      <div class="space-y-4">
+
+        <!-- Email -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">
+            Email
+          </label>
+          <input id="inputEmail" type="email" 
+                 placeholder="email@kampus.ac.id"
+                 class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm 
+                        outline-none transition focus:border-green-600 focus:ring-2 
+                        focus:ring-green-100" />
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">
+            Password
+          </label>
+          <div class="relative">
+            <input id="inputPassword" type="password" 
+                   placeholder="Masukkan password"
+                   class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm 
+                          outline-none transition focus:border-green-600 focus:ring-2 
+                          focus:ring-green-100 pr-12" />
+            <button id="btnTogglePwd" type="button"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 
+                           text-gray-400 hover:text-gray-600 transition text-lg">
+              👁
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <button id="btnLogin"
+                class="w-full text-white font-semibold rounded-xl py-3 text-sm 
+                       transition hover:opacity-90 active:scale-95 mt-2"
+                style="background:#1B6B45">
+          Masuk
+        </button>
+
+      </div>
+
+      <!-- Divider -->
+      <div class="flex items-center gap-3 my-5">
+        <hr class="flex-1 border-gray-100" />
+        <span class="text-xs text-gray-400">atau</span>
+        <hr class="flex-1 border-gray-100" />
+      </div>
+
+      <!-- Link register -->
+      <p class="text-center text-sm text-gray-500">
+        Belum punya akun?
+        <a href="register.html" class="font-semibold hover:underline"
+           style="color:#1B6B45">
+          Daftar sekarang
+        </a>
+      </p>
+    </div>
+
+  </div>
+
+  <!-- ── LOGIC ──────────────────────────────────────────── -->
+  <script type="module">
+
+    // ── Toggle password visibility
+    document.getElementById('btnTogglePwd').addEventListener('click', () => {
+      const input = document.getElementById('inputPassword');
+      const btn   = document.getElementById('btnTogglePwd');
+      const isHidden = input.type === 'password';
+      input.type  = isHidden ? 'text' : 'password';
+      btn.textContent = isHidden ? '🙈' : '👁';
+    });
+
+    // ── Tampilkan error
+    function showError(msg) {
+      const el = document.getElementById('alertError');
+      document.getElementById('alertErrorMsg').textContent = msg;
+      el.classList.remove('hidden');
+      el.classList.add('flex');
+    }
+
+    function hideError() {
+      const el = document.getElementById('alertError');
+      el.classList.add('hidden');
+      el.classList.remove('flex');
+    }
+
+    // ── Set loading state pada tombol
+    function setLoading(isLoading) {
+      const btn = document.getElementById('btnLogin');
+      btn.disabled     = isLoading;
+      btn.textContent  = isLoading ? 'Memproses...' : 'Masuk';
+      btn.style.opacity = isLoading ? '0.7' : '1';
+    }
+
+    // ── Proses login
+    async function doLogin() {
+      hideError();
+
+      const email    = document.getElementById('inputEmail').value.trim();
+      const password = document.getElementById('inputPassword').value;
+
+      // Validasi dasar
+      if (!email || !password) {
+        showError('Email dan password wajib diisi');
+        return;
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showError('Format email tidak valid');
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        // 1. Login ke Supabase Auth
+        const { data, error } = await window._supabase.auth.signInWithPassword({
+          email, 
+          password
+        });
+
+        if (error) throw error;
+
+        // 2. Ambil role dari tabel profiles
+        const { data: profile, error: profileError } = await window._supabase
+          .from('profiles')
+          .select('role, full_name')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError) throw profileError;
+
+        // 3. Redirect berdasarkan role
+        const redirectUrl = profile.role === 'tenant'
+          ? '/pages/tenant/dashboard.html'
+          : '/pages/mahasiswa/dashboard.html';
+
+        window.location.href = redirectUrl;
+
+      } catch (err) {
+        // Pesan error yang user-friendly
+        const msg = err.message?.includes('Invalid login credentials')
+          ? 'Email atau password salah'
+          : err.message?.includes('Email not confirmed')
+          ? 'Email belum dikonfirmasi, cek inbox kamu'
+          : 'Terjadi kesalahan, coba lagi';
+
+        showError(msg);
+        setLoading(false);
+      }
+    }
+
+    // ── Event listeners
+    document.getElementById('btnLogin').addEventListener('click', doLogin);
+
+    // Enter key di field password
+    document.getElementById('inputPassword').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') doLogin();
+    });
+
+    // Enter key di field email
+    document.getElementById('inputEmail').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') document.getElementById('inputPassword').focus();
+    });
+
+  </script>
+</body>
+</html>
