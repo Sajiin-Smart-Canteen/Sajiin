@@ -1,1 +1,791 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Booking Meja — Smart Canteen</title>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__SUPABASE_URL__ = 'https://qeilvipuxxtbjfhioefd.supabase.co';
+    window.__SUPABASE_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaWx2aXB1eHh0YmpmaGlvZWZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDExMDAsImV4cCI6MjA5NjYxNzEwMH0.iDrj8fmcbuiJrv-mSOu9XYUrCYLv_Gga-vFQ12G5Pys';
+    window._supabase = window.supabase.createClient(
+      window.__SUPABASE_URL__,
+      window.__SUPABASE_KEY__
+    );
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#1B6B45', light: '#2D9362', dark: '#134E33' },
+            secondary: { DEFAULT: '#F5A623' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- ── SESSION GUARD ─────────────────────────────────── -->
+  <script>
+    window._supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        window.location.replace('/pages/auth/login.html');
+        return;
+      }
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        const { data: profile } = await window._supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        if (!profile || profile.role !== 'mahasiswa') {
+          window.location.replace('/pages/auth/login.html');
+          return;
+        }
+        if (typeof init === 'function') init(session, profile);
+      }
+    });
+  </script>
+
+  <div class="flex min-h-screen">
+
+    <!-- ── SIDEBAR ───────────────────────────────────────── -->
+    <aside class="fixed top-0 left-0 h-full w-60 flex flex-col z-30"
+           style="background:#1B6B45">
+      <div class="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+        <div class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg">🍽️</div>
+        <div>
+          <p class="text-white font-bold text-sm leading-tight">Smart Canteen</p>
+          <p class="text-white/50 text-xs">Student Portal</p>
+        </div>
+      </div>
+      <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>📊</span> Dashboard
+        </a>
+        <a href="kantin.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🏪</span> Daftar Kantin
+        </a>
+        <a href="menu.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🍜</span> Pesan Makanan
+        </a>
+        <a href="pesanan.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>📦</span> Pesanan Saya
+        </a>
+        <a href="booking.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition" style="background:rgba(255,255,255,0.15); color:white">
+          <span>🪑</span> Booking Meja
+        </a>
+        <a href="profil.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>👤</span> Profil Saya
+        </a>
+      </nav>
+      <div class="px-3 py-4 border-t border-white/10">
+        <button id="btnLogout" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🚪</span> Keluar
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── MAIN ───────────────────────────────────────────── -->
+    <main class="flex-1 ml-60 flex flex-col min-h-screen">
+
+      <!-- ── HERO ──────────────────────────────────────────── -->
+      <div class="px-6 pt-6">
+        <div class="rounded-2xl p-6 text-white relative overflow-hidden"
+             style="background:linear-gradient(135deg, #1B6B45 0%, #F5A623 130%)">
+          <h1 class="text-lg font-bold mb-1">🪑 Booking Meja Kantin</h1>
+          <p class="text-white/80 text-sm mb-4">Pesan meja favoritmu sebelum datang ke kantin, tanpa perlu antri</p>
+
+          <div class="grid grid-cols-3 gap-3">
+            <div class="bg-black/15 rounded-xl p-3 text-center">
+              <p id="statTotalMeja" class="text-xl font-bold">—</p>
+              <p class="text-xs text-white/70">Total Meja</p>
+            </div>
+            <div class="bg-black/15 rounded-xl p-3 text-center">
+              <p id="statTersedia" class="text-xl font-bold">—</p>
+              <p class="text-xs text-white/70">Tersedia</p>
+            </div>
+            <div class="bg-black/15 rounded-xl p-3 text-center">
+              <p id="statBookingSaya" class="text-xl font-bold">—</p>
+              <p class="text-xs text-white/70">Booking Saya</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SELECT KANTIN + INFO ──────────────────────────── -->
+      <div class="px-6 pt-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+          <!-- Pilih Kantin -->
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <label class="block text-xs font-medium text-gray-500 mb-1.5">🏪 Pilih Kantin</label>
+            <select id="selectKantin"
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                           outline-none focus:border-green-500">
+              <option value="">Memuat kantin...</option>
+            </select>
+          </div>
+
+          <!-- Jam Operasional -->
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
+                 style="background:#F0FAF5">🕐</div>
+            <div>
+              <p class="text-xs text-gray-400">Jam Operasional</p>
+              <p id="infoJamOperasional" class="text-sm font-semibold text-gray-700">—</p>
+            </div>
+          </div>
+
+          <!-- Durasi Maksimal -->
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
+                 style="background:#FEF3C7">⏱</div>
+            <div>
+              <p class="text-xs text-gray-400">Durasi Maksimal</p>
+              <p class="text-sm font-semibold text-gray-700">2 Jam</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── MAIN GRID: ZONA MEJA + FORM ──────────────────── -->
+      <div class="px-6 py-4">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          <!-- LEFT: Pilih Zona + Meja -->
+          <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <h3 class="font-semibold text-gray-800 text-sm mb-3">🗺️ Pilih Zona</h3>
+
+            <!-- Zona tabs -->
+            <div class="flex gap-2 mb-4 overflow-x-auto pb-1" id="zonaTabs">
+              <button data-zona="utara"
+                      class="zona-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition"
+                      style="background:#1B6B45; color:white">
+                🌳 Zona Utara
+              </button>
+              <button data-zona="selatan"
+                      class="zona-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition bg-white text-gray-600 border border-gray-200">
+                ☀️ Zona Selatan
+              </button>
+              <button data-zona="timur"
+                      class="zona-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition bg-white text-gray-600 border border-gray-200">
+                🌅 Zona Timur
+              </button>
+              <button data-zona="barat"
+                      class="zona-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition bg-white text-gray-600 border border-gray-200">
+                🌇 Zona Barat
+              </button>
+            </div>
+
+            <p id="zonaDesc" class="text-xs text-gray-400 mb-4">
+              Area dekat jendela dengan AC, view taman kampus. Cocok untuk bersantai.
+            </p>
+
+            <!-- Legend -->
+            <div class="flex items-center gap-4 mb-4 text-xs text-gray-500">
+              <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded bg-white border-2 inline-block" style="border-color:#1B6B45"></span>
+                Tersedia
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded inline-block" style="background:#1B6B45"></span>
+                Dipilih
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded inline-block" style="background:#FEF3C7"></span>
+                Booking Saya
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded inline-block bg-gray-200"></span>
+                Terisi
+              </span>
+            </div>
+
+            <!-- Grid meja -->
+            <div id="mejaGrid" class="grid grid-cols-4 sm:grid-cols-6 gap-3">
+              <div class="col-span-full text-center py-8 text-sm text-gray-400">
+                Pilih kantin dan tanggal terlebih dahulu
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Form Booking -->
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <h3 class="font-semibold text-gray-800 text-sm mb-3">📋 Booking Meja</h3>
+            <p class="text-xs text-gray-400 mb-4">Isi data berikut untuk memesan meja</p>
+
+            <!-- Selected meja preview -->
+            <div id="selectedMejaBox" class="hidden mb-4 p-3 rounded-xl flex items-center gap-3"
+                 style="background:#F0FAF5">
+              <span class="text-2xl">🪑</span>
+              <div>
+                <p id="selectedMejaText" class="text-sm font-semibold" style="color:#1B6B45">—</p>
+                <p class="text-xs text-gray-500">Meja yang dipilih</p>
+              </div>
+            </div>
+            <div id="noMejaBox" class="mb-4 p-3 rounded-xl bg-gray-50 flex items-center gap-3">
+              <span class="text-2xl">👆</span>
+              <p class="text-xs text-gray-500">Belum ada meja yang dipilih di area</p>
+            </div>
+
+            <!-- Form -->
+            <div class="space-y-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">👤 Nama Lengkap</label>
+                <input id="inputNama" type="text"
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-500" />
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-gray-500 mb-1.5">👥 Jumlah Orang</label>
+                  <select id="inputJumlah"
+                          class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-500">
+                    <option value="1">1 orang</option>
+                    <option value="2" selected>2 orang</option>
+                    <option value="3">3 orang</option>
+                    <option value="4">4 orang</option>
+                    <option value="5">5 orang</option>
+                    <option value="6">6 orang</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-500 mb-1.5">🕐 Jam Booking</label>
+                  <select id="inputJam"
+                          class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-500">
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">📅 Tanggal Booking</label>
+                <input id="inputTanggal" type="date"
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-500" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">📝 Catatan (Opsional)</label>
+                <textarea id="inputCatatan" rows="2"
+                          placeholder="contoh: dekat stop kontak"
+                          class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none
+                                 focus:border-green-500 resize-none"></textarea>
+              </div>
+
+              <button id="btnBooking"
+                      class="w-full text-white rounded-xl py-3 font-semibold text-sm
+                             transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                      style="background:#1B6B45" disabled>
+                🪑 Booking Sekarang
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── BOOKING SAYA ──────────────────────────────────── -->
+      <div class="px-6 pb-6">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+            <h3 class="font-semibold text-gray-800 text-sm">📜 Booking Saya</h3>
+            <button id="btnRefresh"
+                    class="text-xs font-medium hover:underline flex items-center gap-1"
+                    style="color:#1B6B45">
+              🔄 Refresh
+            </button>
+          </div>
+          <div id="listBookingSaya" class="p-4 space-y-3">
+            <div class="animate-pulse space-y-2">
+              <div class="h-4 bg-gray-100 rounded w-2/3"></div>
+              <div class="h-3 bg-gray-100 rounded w-1/3"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ── TOAST ─────────────────────────────────────────────── -->
+  <div id="toast"
+       class="hidden fixed top-6 right-6 bg-white shadow-xl rounded-xl px-4 py-3
+              border border-gray-100 z-50 text-sm font-medium text-gray-700">
+  </div>
+
+  <!-- ── LOGIC ──────────────────────────────────────────────── -->
+  <script type="module">
+
+    let currentUser  = null;
+    let allTenants   = [];
+    let selectedTenant = null;
+    let activeZona   = 'utara';
+    let selectedMeja = null;
+    let bookedMejaList = []; // meja yang sudah terisi untuk tanggal+jam terpilih
+    let myBookings   = [];
+
+    const ZONA_INFO = {
+      utara:   { label: 'Zona Utara',   icon: '🌳', desc: 'Area dekat jendela dengan AC, view taman kampus. Cocok untuk bersantai.' },
+      selatan: { label: 'Zona Selatan', icon: '☀️', desc: 'Area terbuka dengan sirkulasi udara baik. Cocok untuk kelompok besar.' },
+      timur:   { label: 'Zona Timur',   icon: '🌅', desc: 'Area dekat pintu masuk, akses cepat ke kasir dan tenant.' },
+      barat:   { label: 'Zona Barat',   icon: '🌇', desc: 'Area tenang di sisi belakang, cocok untuk diskusi kelompok.' },
+    };
+
+    // Layout meja per zona (kapasitas masing-masing)
+    const MEJA_LAYOUT = {
+      utara:   ['U-01','U-02','U-03','U-04','U-05','U-06','U-07','U-08'],
+      selatan: ['S-01','S-02','S-03','S-04','S-05','S-06'],
+      timur:   ['T-01','T-02','T-03','T-04','T-05','T-06','T-07','T-08'],
+      barat:   ['B-01','B-02','B-03','B-04','B-05','B-06'],
+    };
+
+    // ── Helpers
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.remove('hidden');
+      setTimeout(() => t.classList.add('hidden'), 2500);
+    }
+
+    function formatDate(d) {
+      return new Date(d).toLocaleDateString('id-ID', {
+        weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
+      });
+    }
+
+    function todayStr() {
+      return new Date().toISOString().split('T')[0];
+    }
+
+    // ── INIT
+    window.init = async function (session, profile) {
+      currentUser = { ...session.user, ...profile };
+
+      document.getElementById('inputNama').value = profile.full_name;
+      document.getElementById('inputTanggal').value = todayStr();
+      document.getElementById('inputTanggal').min   = todayStr();
+
+      generateJamOptions();
+      await loadTenants();
+      await loadMyBookings();
+    };
+
+    // ── Generate opsi jam (07:00 - 20:00, interval 30 menit)
+    function generateJamOptions() {
+      const select = document.getElementById('inputJam');
+      const options = [];
+      for (let h = 7; h <= 20; h++) {
+        for (let m = 0; m < 60; m += 30) {
+          if (h === 20 && m > 0) continue;
+          const time = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+          options.push(time);
+        }
+      }
+      select.innerHTML = options.map(t => `<option value="${t}">${t} WIB</option>`).join('');
+    }
+
+    // ── Load daftar kantin
+    async function loadTenants() {
+      const { data } = await window._supabase
+        .from('tenants')
+        .select('id, nama_toko, jam_buka, jam_tutup, status')
+        .eq('is_active', true)
+        .order('nama_toko');
+
+      allTenants = data || [];
+      const select = document.getElementById('selectKantin');
+
+      if (allTenants.length === 0) {
+        select.innerHTML = '<option value="">Belum ada kantin tersedia</option>';
+        return;
+      }
+
+      select.innerHTML = allTenants.map(t =>
+        `<option value="${t.id}">${t.nama_toko} ${t.status === 'tutup' ? '(Tutup)' : ''}</option>`
+      ).join('');
+
+      selectedTenant = allTenants[0];
+      updateTenantInfo();
+      await refreshMejaGrid();
+    }
+
+    // ── Update info jam operasional
+    function updateTenantInfo() {
+      if (!selectedTenant) return;
+      const jamBuka  = selectedTenant.jam_buka?.slice(0,5)  || '07:00';
+      const jamTutup = selectedTenant.jam_tutup?.slice(0,5) || '20:00';
+      document.getElementById('infoJamOperasional').textContent = `${jamBuka} - ${jamTutup}`;
+
+      // Stats
+      const totalMeja = Object.values(MEJA_LAYOUT).reduce((s, arr) => s + arr.length, 0);
+      document.getElementById('statTotalMeja').textContent = totalMeja;
+    }
+
+    // ── Refresh grid meja (cek availability dari DB)
+    async function refreshMejaGrid() {
+      if (!selectedTenant) return;
+
+      const tanggal = document.getElementById('inputTanggal').value;
+      const jam     = document.getElementById('inputJam').value;
+
+      // Ambil semua booking aktif untuk tenant + tanggal + jam ini
+      const { data } = await window._supabase
+        .from('table_bookings')
+        .select('nomor_meja, mahasiswa_id, zona')
+        .eq('tenant_id', selectedTenant.id)
+        .eq('tanggal', tanggal)
+        .eq('jam_mulai', jam)
+        .eq('status', 'aktif');
+
+      bookedMejaList = data || [];
+      renderMejaGrid();
+      renderZonaDesc();
+    }
+
+    // ── Render desc zona
+    function renderZonaDesc() {
+      document.getElementById('zonaDesc').textContent = ZONA_INFO[activeZona].desc;
+    }
+
+    // ── Render grid meja untuk zona aktif
+    function renderMejaGrid() {
+      const container = document.getElementById('mejaGrid');
+      const mejaList  = MEJA_LAYOUT[activeZona] || [];
+
+      let tersediaCount = 0;
+
+      container.innerHTML = mejaList.map(nomor => {
+        const booking = bookedMejaList.find(b => b.nomor_meja === nomor && b.zona === activeZona);
+        const isMyBooking = booking && booking.mahasiswa_id === currentUser.id;
+        const isBooked    = !!booking && !isMyBooking;
+        const isSelected  = selectedMeja === nomor;
+
+        if (!isBooked) tersediaCount++;
+
+        let bg, textColor, border, cursor, capacityIcon;
+        if (isSelected) {
+          bg = '#1B6B45'; textColor = 'white'; border = '#1B6B45'; cursor = 'cursor-pointer';
+        } else if (isMyBooking) {
+          bg = '#FEF3C7'; textColor = '#92400E'; border = '#FCD34D'; cursor = 'cursor-default';
+        } else if (isBooked) {
+          bg = '#E5E7EB'; textColor = '#9CA3AF'; border = '#E5E7EB'; cursor = 'cursor-not-allowed';
+        } else {
+          bg = 'white'; textColor = '#1B6B45'; border = '#1B6B45'; cursor = 'cursor-pointer';
+        }
+
+        const capacity = nomor.endsWith('1') || nomor.endsWith('5') ? 6
+                        : nomor.endsWith('3') || nomor.endsWith('7') ? 2
+                        : 4;
+
+        return `
+          <button ${isBooked ? 'disabled' : ''}
+                  onclick="selectMeja('${nomor}', ${capacity})"
+                  class="aspect-square rounded-xl border-2 flex flex-col items-center justify-center
+                         transition ${cursor} hover:scale-105"
+                  style="background:${bg}; color:${textColor}; border-color:${border}">
+            <span class="font-bold text-sm">${nomor}</span>
+            <span class="text-xs mt-0.5">
+              ${isMyBooking ? '✓ Saya' : `👥 ${capacity}`}
+            </span>
+          </button>`;
+      }).join('');
+
+      document.getElementById('statTersedia').textContent = tersediaCount;
+    }
+
+    // ── Select meja
+    window.selectMeja = function (nomor, capacity) {
+      selectedMeja = selectedMeja === nomor ? null : nomor;
+
+      const box      = document.getElementById('selectedMejaBox');
+      const noBox    = document.getElementById('noMejaBox');
+      const text     = document.getElementById('selectedMejaText');
+      const btn      = document.getElementById('btnBooking');
+
+      if (selectedMeja) {
+        box.classList.remove('hidden');
+        noBox.classList.add('hidden');
+        text.textContent = `Meja ${selectedMeja} — ${ZONA_INFO[activeZona].label} (Kapasitas ${capacity})`;
+        btn.disabled = false;
+      } else {
+        box.classList.add('hidden');
+        noBox.classList.remove('hidden');
+        btn.disabled = true;
+      }
+
+      renderMejaGrid();
+    };
+
+    // ── Zona tab switching
+    document.querySelectorAll('.zona-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeZona = btn.dataset.zona;
+        selectedMeja = null;
+
+        document.querySelectorAll('.zona-btn').forEach(b => {
+          b.style.background = 'white';
+          b.classList.add('text-gray-600', 'border', 'border-gray-200');
+          b.style.color = '';
+        });
+        btn.classList.remove('text-gray-600', 'border', 'border-gray-200');
+        btn.style.background = '#1B6B45';
+        btn.style.color = 'white';
+
+        document.getElementById('selectedMejaBox').classList.add('hidden');
+        document.getElementById('noMejaBox').classList.remove('hidden');
+        document.getElementById('btnBooking').disabled = true;
+
+        renderMejaGrid();
+        renderZonaDesc();
+      });
+    });
+
+    // ── Select kantin
+    document.getElementById('selectKantin').addEventListener('change', async (e) => {
+      selectedTenant = allTenants.find(t => t.id === e.target.value);
+      selectedMeja = null;
+      document.getElementById('selectedMejaBox').classList.add('hidden');
+      document.getElementById('noMejaBox').classList.remove('hidden');
+      document.getElementById('btnBooking').disabled = true;
+      updateTenantInfo();
+      await refreshMejaGrid();
+    });
+
+    // ── Tanggal / jam berubah → refresh availability
+    document.getElementById('inputTanggal').addEventListener('change', async () => {
+      selectedMeja = null;
+      document.getElementById('selectedMejaBox').classList.add('hidden');
+      document.getElementById('noMejaBox').classList.remove('hidden');
+      document.getElementById('btnBooking').disabled = true;
+      await refreshMejaGrid();
+    });
+
+    document.getElementById('inputJam').addEventListener('change', async () => {
+      selectedMeja = null;
+      document.getElementById('selectedMejaBox').classList.add('hidden');
+      document.getElementById('noMejaBox').classList.remove('hidden');
+      document.getElementById('btnBooking').disabled = true;
+      await refreshMejaGrid();
+    });
+
+    // ── Submit booking
+    document.getElementById('btnBooking').addEventListener('click', async () => {
+      if (!selectedMeja || !selectedTenant) return;
+
+      const btn = document.getElementById('btnBooking');
+      btn.disabled = true;
+      btn.textContent = 'Memproses...';
+
+      try {
+        const jumlahOrang = parseInt(document.getElementById('inputJumlah').value);
+        const tanggal     = document.getElementById('inputTanggal').value;
+        const jamMulai    = document.getElementById('inputJam').value;
+        const catatan     = document.getElementById('inputCatatan').value.trim();
+        const durasi      = 120; // 2 jam
+
+        const jamSelesaiDate = new Date(`2000-01-01T${jamMulai}`);
+        jamSelesaiDate.setMinutes(jamSelesaiDate.getMinutes() + durasi);
+        const jamSelesai = jamSelesaiDate.toTimeString().slice(0,5);
+
+        // Double-check availability sebelum insert
+        const { data: existing } = await window._supabase
+          .from('table_bookings')
+          .select('id')
+          .eq('tenant_id', selectedTenant.id)
+          .eq('nomor_meja', selectedMeja)
+          .eq('zona', activeZona)
+          .eq('tanggal', tanggal)
+          .eq('jam_mulai', jamMulai)
+          .eq('status', 'aktif');
+
+        if (existing && existing.length > 0) {
+          showToast('❌ Meja sudah dibooking orang lain, pilih meja lain');
+          await refreshMejaGrid();
+          btn.disabled = false;
+          btn.textContent = '🪑 Booking Sekarang';
+          return;
+        }
+
+        // Insert booking
+        const { data: booking, error } = await window._supabase
+          .from('table_bookings')
+          .insert({
+            mahasiswa_id: currentUser.id,
+            tenant_id: selectedTenant.id,
+            zona: activeZona,
+            nomor_meja: selectedMeja,
+            jumlah_orang: jumlahOrang,
+            tanggal,
+            jam_mulai: jamMulai,
+            jam_selesai: jamSelesai,
+            durasi,
+            catatan: catatan || null
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Notif
+        await window._supabase.from('notifications').insert({
+          user_id: currentUser.id,
+          judul: 'Booking Meja Berhasil',
+          pesan: `Meja ${selectedMeja} (${ZONA_INFO[activeZona].label}) berhasil dibooking untuk ${formatDate(tanggal)} pukul ${jamMulai}`,
+          tipe: 'booking'
+        });
+
+        showToast('✅ Booking meja berhasil!');
+
+        // Reset
+        selectedMeja = null;
+        document.getElementById('selectedMejaBox').classList.add('hidden');
+        document.getElementById('noMejaBox').classList.remove('hidden');
+        document.getElementById('inputCatatan').value = '';
+
+        await refreshMejaGrid();
+        await loadMyBookings();
+
+      } catch (err) {
+        console.error(err);
+        showToast('❌ Gagal melakukan booking, coba lagi');
+      } finally {
+        btn.disabled = true; // tetap disabled karena selectedMeja sudah null
+        btn.textContent = '🪑 Booking Sekarang';
+      }
+    });
+
+    // ── Load booking saya
+    async function loadMyBookings() {
+      const { data } = await window._supabase
+        .from('table_bookings')
+        .select('*, tenants (nama_toko, lokasi)')
+        .eq('mahasiswa_id', currentUser.id)
+        .order('tanggal', { ascending: false })
+        .order('jam_mulai', { ascending: false });
+
+      myBookings = data || [];
+      document.getElementById('statBookingSaya').textContent =
+        myBookings.filter(b => b.status === 'aktif').length;
+
+      renderMyBookings();
+    }
+
+    // ── Render booking saya (grouped: aktif & dibatalkan)
+    function renderMyBookings() {
+      const container = document.getElementById('listBookingSaya');
+
+      if (myBookings.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8">
+            <p class="text-3xl mb-2">🪑</p>
+            <p class="text-sm text-gray-400">Belum ada riwayat booking</p>
+          </div>`;
+        return;
+      }
+
+      const aktif      = myBookings.filter(b => b.status === 'aktif');
+      const dibatalkan = myBookings.filter(b => b.status === 'dibatalkan');
+      const selesai    = myBookings.filter(b => b.status === 'selesai');
+
+      let html = '';
+
+      if (aktif.length > 0) {
+        html += `<p class="text-xs font-semibold text-gray-500 mb-2">📍 Riwayat Aktif</p>`;
+        html += aktif.map(b => renderBookingItem(b, true)).join('');
+      }
+
+      if (selesai.length > 0) {
+        html += `<p class="text-xs font-semibold text-gray-500 mb-2 mt-4">✅ Selesai</p>`;
+        html += selesai.slice(0, 3).map(b => renderBookingItem(b, false)).join('');
+      }
+
+      if (dibatalkan.length > 0) {
+        html += `<p class="text-xs font-semibold text-red-500 mb-2 mt-4">❌ Dibatalkan</p>`;
+        html += dibatalkan.slice(0, 3).map(b => renderBookingItem(b, false)).join('');
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ── Render satu item booking
+    function renderBookingItem(b, showCancel) {
+      const isPast = new Date(b.tanggal) < new Date(todayStr());
+      const statusMap = {
+        aktif:      { label: 'Aktif',      bg: '#D1FAE5', color: '#065F46' },
+        selesai:    { label: 'Selesai',    bg: '#F3F4F6', color: '#374151' },
+        dibatalkan: { label: 'Dibatalkan', bg: '#FEE2E2', color: '#991B1B' },
+      };
+      const s = statusMap[b.status];
+
+      return `
+        <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50">
+          <div class="flex items-center gap-3">
+            <span class="text-xl">🪑</span>
+            <div>
+              <p class="text-sm font-semibold text-gray-700">
+                Meja ${b.nomor_meja}
+                <span class="text-xs font-normal text-gray-400">
+                  — Zona ${b.zona?.charAt(0).toUpperCase() + b.zona?.slice(1)}
+                </span>
+              </p>
+              <p class="text-xs text-gray-400">
+                ${b.tenants?.nama_toko || ''} · ${formatDate(b.tanggal)} · ${b.jam_mulai} - ${b.jam_selesai}
+                · ${b.jumlah_orang} orang
+              </p>
+              ${b.catatan ? `<p class="text-xs text-gray-400 italic">"${b.catatan}"</p>` : ''}
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-medium px-2 py-1 rounded-full"
+                  style="background:${s.bg}; color:${s.color}">${s.label}</span>
+            ${showCancel && !isPast ? `
+              <button onclick="cancelBooking('${b.id}')"
+                      class="text-xs font-medium text-red-500 hover:underline">
+                Batalkan
+              </button>` : ''}
+          </div>
+        </div>`;
+    }
+
+    // ── Cancel booking
+    window.cancelBooking = async function (bookingId) {
+      if (!confirm('Batalkan booking ini?')) return;
+
+      const { error } = await window._supabase
+        .from('table_bookings')
+        .update({ status: 'dibatalkan' })
+        .eq('id', bookingId);
+
+      if (!error) {
+        showToast('Booking dibatalkan');
+        await loadMyBookings();
+        await refreshMejaGrid();
+      } else {
+        showToast('❌ Gagal membatalkan booking');
+      }
+    };
+
+    // ── Refresh button
+    document.getElementById('btnRefresh').addEventListener('click', async () => {
+      await refreshMejaGrid();
+      await loadMyBookings();
+      showToast('Data diperbarui');
+    });
+
+    // ── Logout
+    document.getElementById('btnLogout').addEventListener('click', async () => {
+      await window._supabase.auth.signOut();
+      window.location.replace('/pages/auth/login.html');
+    });
+
+  </script>
+</body>
+</html>
