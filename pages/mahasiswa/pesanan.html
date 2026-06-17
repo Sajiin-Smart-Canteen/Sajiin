@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pesanan Saya — Smart Canteen</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__SUPABASE_URL__ = 'https://qeilvipuxxtbjfhioefd.supabase.co';
+    window.__SUPABASE_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaWx2aXB1eHh0YmpmaGlvZWZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDExMDAsImV4cCI6MjA5NjYxNzEwMH0.iDrj8fmcbuiJrv-mSOu9XYUrCYLv_Gga-vFQ12G5Pys';
+    window._supabase = window.supabase.createClient(
+      window.__SUPABASE_URL__,
+      window.__SUPABASE_KEY__
+    );
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#1B6B45', light: '#2D9362', dark: '#134E33' },
+            secondary: { DEFAULT: '#F5A623' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- ── SESSION GUARD ─────────────────────────────────── -->
+  <script>
+    window._supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        window.location.replace('/pages/auth/login.html');
+        return;
+      }
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        const { data: profile } = await window._supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        if (!profile || profile.role !== 'mahasiswa') {
+          window.location.replace('/pages/auth/login.html');
+          return;
+        }
+        if (typeof init === 'function') init(session, profile);
+      }
+    });
+  </script>
+
+  <div class="flex min-h-screen">
+
+    <!-- ── SIDEBAR ───────────────────────────────────────── -->
+    <aside class="fixed top-0 left-0 h-full w-60 flex flex-col z-30"
+           style="background:#1B6B45">
+      <div class="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+        <div class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg">🍽️</div>
+        <div>
+          <p class="text-white font-bold text-sm leading-tight">Smart Canteen</p>
+          <p class="text-white/50 text-xs">Student Portal</p>
+        </div>
+      </div>
+      <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>📊</span> Dashboard
+        </a>
+        <a href="kantin.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🏪</span> Daftar Kantin
+        </a>
+        <a href="menu.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🍜</span> Pesan Makanan
+        </a>
+        <a href="pesanan.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition" style="background:rgba(255,255,255,0.15); color:white">
+          <span>📦</span> Pesanan Saya
+        </a>
+        <a href="booking.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🪑</span> Booking Meja
+        </a>
+        <a href="profil.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>👤</span> Profil Saya
+        </a>
+      </nav>
+      <div class="px-3 py-4 border-t border-white/10">
+        <button id="btnLogout" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🚪</span> Keluar
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── MAIN ───────────────────────────────────────────── -->
+    <main class="flex-1 ml-60 flex flex-col min-h-screen">
+
+      <!-- ── HERO LIVE KITCHEN ─────────────────────────────── -->
+      <div class="px-6 pt-6">
+        <div class="rounded-2xl p-6 text-white relative overflow-hidden"
+             style="background:linear-gradient(135deg, #1B6B45 0%, #F5A623 130%)">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-red-400 animate-pulse inline-block"></span>
+              <h1 class="text-lg font-bold">📦 Pesanan Saya</h1>
+            </div>
+            <p id="lastUpdate" class="text-xs text-white/70">Last update: —</p>
+          </div>
+          <p class="text-white/80 text-sm mb-4">Pantau status pesanan dan lacak proses memasak secara real-time</p>
+
+          <div class="grid grid-cols-4 gap-3">
+            <div class="bg-black/15 rounded-xl p-3 text-center">
+              <p id="statTotalHariIni" class="text-xl font-bold">—</p>
+              <p class="text-xs text-white/70">Total Pesanan Hari Ini</p>
+            </div>
+            <div class="bg-black/15 rounded-xl p-3 text-center">
+              <p id="statSedangDimasak" class="text-xl font-bold">—</p>
+              <p class="text-xs text-white/70">Sedang Dimasak</p>
+            </div>
+            <div class="bg-black/15 rounded-xl p-3 text-center">
+              <p id="statSiapDiambil" class="text-xl font-bold">—</p>
+              <p class="text-xs text-white/70">Siap Diambil</p>
+            </div>
+            <div class="bg-black/15 rounded-xl p-3 text-center">
+              <p id="statRataWaktu" class="text-xl font-bold">—</p>
+              <p class="text-xs text-white/70">Rata-rata Waktu</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SUMMARY CARDS ─────────────────────────────────── -->
+      <div class="px-6 pt-4">
+        <div class="grid grid-cols-4 gap-4">
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
+                 style="background:#E0F2FE">⏳</div>
+            <div>
+              <p id="cardPesananAktif" class="text-lg font-bold text-gray-800">—</p>
+              <p class="text-xs text-gray-400">Pesanan Aktif</p>
+            </div>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
+                 style="background:#D1FAE5">✅</div>
+            <div>
+              <p id="cardSelesaiHariIni" class="text-lg font-bold text-gray-800">—</p>
+              <p class="text-xs text-gray-400">Selesai Hari Ini</p>
+            </div>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
+                 style="background:#FEF3C7">⭐</div>
+            <div>
+              <p id="cardRataRating" class="text-lg font-bold text-gray-800">—</p>
+              <p class="text-xs text-gray-400">Makanan Terendam</p>
+            </div>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
+                 style="background:#EDE9FE">💎</div>
+            <div>
+              <p id="cardPoin" class="text-lg font-bold text-gray-800">—</p>
+              <p class="text-xs text-gray-400">Poin Sajiin</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TABS ──────────────────────────────────────────── -->
+      <div class="px-6 pt-5">
+        <div class="flex gap-1 bg-white rounded-xl p-1 border border-gray-100 w-fit">
+          <button id="tabAktif"
+                  class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition"
+                  style="background:#1B6B45; color:white">
+            🔴 Pesanan Aktif <span id="countAktif" class="ml-1">(0)</span>
+          </button>
+          <button id="tabRiwayat"
+                  class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition text-gray-500">
+            🕒 Riwayat Pesanan
+          </button>
+        </div>
+      </div>
+
+      <!-- ── LIST PESANAN ──────────────────────────────────── -->
+      <div class="flex-1 px-6 py-4">
+        <div id="orderList" class="space-y-4">
+          <div class="animate-pulse space-y-3">
+            <div class="h-24 bg-gray-100 rounded-2xl"></div>
+            <div class="h-24 bg-gray-100 rounded-2xl"></div>
+          </div>
+        </div>
+        <div id="emptyState" class="hidden text-center py-16">
+          <p class="text-5xl mb-3">📦</p>
+          <p class="text-gray-500 font-medium" id="emptyText">Belum ada pesanan</p>
+          <a href="menu.html"
+             class="inline-block mt-3 text-sm font-semibold px-5 py-2.5 rounded-xl text-white"
+             style="background:#1B6B45">
+            Pesan Sekarang
+          </a>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ── MODAL: LIVE KITCHEN TRACKING ─────────────────────── -->
+  <div id="modalOverlay" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden">
+      <div class="px-5 py-4 flex items-center justify-between" style="background:#1B6B45">
+        <h3 class="text-white font-semibold text-sm">🔴 Live Kitchen Tracking</h3>
+        <button id="btnCloseModal" class="text-white/80 hover:text-white text-lg">✕</button>
+      </div>
+
+      <div class="p-5">
+        <!-- Stepper -->
+        <div id="stepperContainer" class="flex items-center justify-between mb-5"></div>
+
+        <div class="space-y-3 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-500">Order ID</span>
+            <span id="modalOrderId" class="font-semibold text-gray-700">—</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">Status Saat Ini</span>
+            <span id="modalStatus" class="font-semibold" style="color:#1B6B45">—</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">Estimasi Selesai</span>
+            <span id="modalEstimasi" class="font-semibold text-gray-700">—</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">Pembayaran</span>
+            <span id="modalPembayaran" class="font-semibold text-gray-700">—</span>
+          </div>
+        </div>
+
+        <div class="border-t border-gray-100 mt-4 pt-4">
+          <p class="text-xs font-semibold text-gray-500 mb-2">Detail Menu</p>
+          <div id="modalItems" class="space-y-2"></div>
+          <div class="flex justify-between pt-3 mt-2 border-t border-gray-50 font-bold text-sm">
+            <span>Total</span>
+            <span id="modalTotal" style="color:#1B6B45">—</span>
+          </div>
+        </div>
+
+        <div id="modalInfoBox" class="mt-4 p-3 rounded-xl text-xs flex items-start gap-2"
+             style="background:#F0FAF5; color:#065F46">
+          <span>ℹ️</span>
+          <span id="modalInfoText">Pesanan sedang diproses oleh penjual</span>
+        </div>
+      </div>
+
+      <div class="px-5 pb-5">
+        <button id="btnCloseModal2"
+                class="w-full text-white rounded-xl py-2.5 text-sm font-semibold"
+                style="background:#1B6B45">
+          Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TOAST ─────────────────────────────────────────────── -->
+  <div id="toast"
+       class="hidden fixed top-6 right-6 bg-white shadow-xl rounded-xl px-4 py-3
+              border border-gray-100 z-50 text-sm font-medium text-gray-700">
+  </div>
+
+  <!-- ── LOGIC ──────────────────────────────────────────────── -->
+  <script type="module">
+
+    let currentUser   = null;
+    let activeTab     = 'aktif';
+    let allOrders     = [];
+    let orderChannel  = null;
+    let refreshTimer  = null;
+
+    const STEPS = [
+      { key: 'menunggu',     label: 'Dibuat',       icon: '📝' },
+      { key: 'dikonfirmasi', label: 'Dikonfirmasi', icon: '✅' },
+      { key: 'diproses',     label: 'Diproses',     icon: '👨‍🍳' },
+      { key: 'siap',         label: 'Siap',         icon: '🔔' },
+      { key: 'selesai',      label: 'Selesai',      icon: '🎉' },
+    ];
+    const STEP_ORDER = STEPS.map(s => s.key);
+
+    // ── Helpers
+    function formatRupiah(n) {
+      return 'Rp ' + Number(n).toLocaleString('id-ID');
+    }
+    function formatTime(d) {
+      return new Date(d).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    }
+    function formatDate(d) {
+      return new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    }
+    function minutesLeft(dateStr) {
+      if (!dateStr) return null;
+      return Math.max(0, Math.round((new Date(dateStr) - new Date()) / 60000));
+    }
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.remove('hidden');
+      setTimeout(() => t.classList.add('hidden'), 2000);
+    }
+    function statusBadge(status) {
+      const map = {
+        menunggu:     { label: 'Menunggu Konfirmasi', bg: '#FEF3C7', color: '#92400E' },
+        dikonfirmasi: { label: 'Dikonfirmasi',         bg: '#DBEAFE', color: '#1E40AF' },
+        diproses:     { label: 'Sedang Dimasak',       bg: '#EDE9FE', color: '#5B21B6' },
+        siap:         { label: 'Siap Diambil',         bg: '#D1FAE5', color: '#065F46' },
+        selesai:      { label: 'Selesai',              bg: '#F3F4F6', color: '#374151' },
+        dibatalkan:   { label: 'Dibatalkan',           bg: '#FEE2E2', color: '#991B1B' },
+      };
+      const s = map[status] || { label: status, bg: '#F3F4F6', color: '#374151' };
+      return `<span class="text-xs font-semibold px-2.5 py-1 rounded-full"
+                    style="background:${s.bg}; color:${s.color}">${s.label}</span>`;
+    }
+
+    // ── INIT
+    window.init = async function (session, profile) {
+      currentUser = { ...session.user, ...profile };
+      await loadOrders();
+      subscribeRealtime();
+
+      // Auto refresh setiap 30 detik (estimasi waktu berubah)
+      refreshTimer = setInterval(() => {
+        renderOrders();
+        updateLastUpdate();
+      }, 30000);
+    };
+
+    function updateLastUpdate() {
+      document.getElementById('lastUpdate').textContent =
+        'Last update: ' + new Date().toLocaleTimeString('id-ID');
+    }
+
+    // ── Load semua pesanan
+    async function loadOrders() {
+      const { data, error } = await window._supabase
+        .from('orders')
+        .select(`
+          id, order_code, status, total_harga, metode_pembayaran, catatan,
+          estimasi_selesai, created_at, waktu_selesai,
+          tenants ( nama_toko, lokasi ),
+          order_items ( id, nama_menu, harga, foto_menu, jumlah, subtotal )
+        `)
+        .eq('mahasiswa_id', currentUser.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      allOrders = data || [];
+      renderStats();
+      renderSummaryCards();
+      renderOrders();
+      updateLastUpdate();
+    }
+
+    // ── Render hero stats
+    function renderStats() {
+      const today = new Date().toISOString().split('T')[0];
+      const todayOrders = allOrders.filter(o => o.created_at.startsWith(today));
+      const aktif = allOrders.filter(o =>
+        ['menunggu','dikonfirmasi','diproses','siap'].includes(o.status));
+      const diproses = allOrders.filter(o => o.status === 'diproses');
+      const siap     = allOrders.filter(o => o.status === 'siap');
+
+      // Rata-rata waktu dari pesanan aktif
+      let avgWaktu = '—';
+      const withEstimasi = aktif.filter(o => o.estimasi_selesai);
+      if (withEstimasi.length > 0) {
+        const total = withEstimasi.reduce((s, o) => s + (minutesLeft(o.estimasi_selesai) || 0), 0);
+        avgWaktu = Math.round(total / withEstimasi.length) + ' min';
+      }
+
+      document.getElementById('statTotalHariIni').textContent   = todayOrders.length;
+      document.getElementById('statSedangDimasak').textContent  = diproses.length;
+      document.getElementById('statSiapDiambil').textContent    = siap.length;
+      document.getElementById('statRataWaktu').textContent      = avgWaktu;
+    }
+
+    // ── Render summary cards
+    function renderSummaryCards() {
+      const today = new Date().toISOString().split('T')[0];
+      const aktif = allOrders.filter(o =>
+        ['menunggu','dikonfirmasi','diproses','siap'].includes(o.status));
+      const selesaiHariIni = allOrders.filter(o =>
+        o.status === 'selesai' && o.waktu_selesai?.startsWith(today));
+      const totalMenuTerorder = allOrders.reduce((s, o) =>
+        s + (o.order_items?.reduce((s2, i) => s2 + i.jumlah, 0) || 0), 0);
+      // Poin: estimasi 1 poin per Rp 1.000 dari pesanan selesai
+      const totalSelesai = allOrders
+        .filter(o => o.status === 'selesai')
+        .reduce((s, o) => s + o.total_harga, 0);
+      const poin = Math.floor(totalSelesai / 1000) * 10; // contoh: 10 poin per 1000
+
+      document.getElementById('cardPesananAktif').textContent     = aktif.length;
+      document.getElementById('cardSelesaiHariIni').textContent   = selesaiHariIni.length;
+      document.getElementById('cardRataRating').textContent       = totalMenuTerorder;
+      document.getElementById('cardPoin').textContent             = poin.toLocaleString('id-ID');
+    }
+
+    // ── Render order list berdasarkan tab
+    function renderOrders() {
+      const container = document.getElementById('orderList');
+      const empty     = document.getElementById('emptyState');
+      const emptyText = document.getElementById('emptyText');
+
+      let filtered;
+      if (activeTab === 'aktif') {
+        filtered = allOrders.filter(o =>
+          ['menunggu','dikonfirmasi','diproses','siap'].includes(o.status));
+      } else {
+        filtered = allOrders.filter(o =>
+          ['selesai','dibatalkan'].includes(o.status));
+      }
+
+      document.getElementById('countAktif').textContent =
+        `(${allOrders.filter(o => ['menunggu','dikonfirmasi','diproses','siap'].includes(o.status)).length})`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        emptyText.textContent = activeTab === 'aktif'
+          ? 'Tidak ada pesanan aktif'
+          : 'Belum ada riwayat pesanan';
+        return;
+      }
+      empty.classList.add('hidden');
+
+      container.innerHTML = filtered.map(order => renderOrderCard(order)).join('');
+    }
+
+    // ── Render satu card pesanan
+    function renderOrderCard(order) {
+      const items     = order.order_items || [];
+      const firstItem = items[0];
+      const moreCount = items.length - 1;
+      const estMin    = minutesLeft(order.estimasi_selesai);
+      const isAktif   = ['menunggu','dikonfirmasi','diproses','siap'].includes(order.status);
+
+      // Progress percentage berdasarkan step
+      const stepIdx  = STEP_ORDER.indexOf(order.status);
+      const progress = order.status === 'dibatalkan' ? 0 : Math.round((stepIdx / (STEP_ORDER.length - 1)) * 100);
+
+      return `
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4
+                    ${isAktif ? 'cursor-pointer hover:border-green-200' : ''} transition"
+             ${isAktif ? `onclick="openModal('${order.id}')"` : ''}>
+
+          <div class="flex items-start justify-between mb-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-sm text-gray-800">
+                  ${firstItem?.nama_menu || 'Pesanan'}
+                  ${moreCount > 0 ? `<span class="text-gray-400 font-normal">+${moreCount} lainnya</span>` : ''}
+                </span>
+              </div>
+              <p class="text-xs text-gray-400 mt-0.5">
+                Order ID: ${order.order_code} · ${order.tenants?.nama_toko || ''}
+              </p>
+              <p class="text-xs text-gray-400">
+                ${formatDate(order.created_at)} · ${formatTime(order.created_at)}
+              </p>
+            </div>
+            <div class="text-right">
+              ${statusBadge(order.status)}
+              ${isAktif && estMin !== null ? `
+                <p class="text-xs text-gray-400 mt-1">⏱ ~${estMin} menit</p>` : ''}
+            </div>
+          </div>
+
+          <!-- Progress bar (hanya untuk aktif) -->
+          ${isAktif ? `
+            <div class="mb-3">
+              <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all duration-500"
+                     style="width:${progress}%; background:#1B6B45"></div>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Items list -->
+          <div class="space-y-1.5 mb-3">
+            ${items.map(item => `
+              <div class="flex items-center justify-between text-sm">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-lg bg-gray-100 overflow-hidden shrink-0
+                              flex items-center justify-center text-sm">
+                    ${item.foto_menu
+                      ? `<img src="${item.foto_menu}" class="w-full h-full object-cover" />`
+                      : '🍽️'}
+                  </div>
+                  <span class="text-gray-600">${item.nama_menu} x${item.jumlah}</span>
+                </div>
+                <span class="font-medium text-gray-700">${formatRupiah(item.subtotal)}</span>
+              </div>`).join('')}
+          </div>
+
+          <div class="flex items-center justify-between pt-3 border-t border-gray-50">
+            <span class="text-xs text-gray-400">${order.metode_pembayaran?.toUpperCase()}</span>
+            <div class="flex items-center gap-3">
+              <span class="font-bold text-sm" style="color:#1B6B45">
+                ${formatRupiah(order.total_harga)}
+              </span>
+              ${activeTab === 'riwayat' && order.status === 'selesai' ? `
+                <button onclick="event.stopPropagation(); pesanLagi('${order.id}')"
+                        class="text-xs font-semibold px-3 py-1.5 rounded-lg text-white
+                               transition hover:opacity-90"
+                        style="background:#1B6B45">
+                  🔄 Pesan Lagi
+                </button>` : ''}
+              ${isAktif ? `
+                <button onclick="event.stopPropagation(); openModal('${order.id}')"
+                        class="text-xs font-semibold px-3 py-1.5 rounded-lg border
+                               transition hover:bg-gray-50"
+                        style="color:#1B6B45; border-color:#1B6B45">
+                  Lacak →
+                </button>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // ── Modal Live Tracking
+    window.openModal = function (orderId) {
+      const order = allOrders.find(o => o.id === orderId);
+      if (!order) return;
+
+      document.getElementById('modalOrderId').textContent    = order.order_code;
+      document.getElementById('modalStatus').textContent     = statusBadge(order.status).replace(/<[^>]*>/g, '');
+      document.getElementById('modalEstimasi').textContent   =
+        order.estimasi_selesai
+          ? `${minutesLeft(order.estimasi_selesai)} menit lagi`
+          : '—';
+      document.getElementById('modalPembayaran').textContent = order.metode_pembayaran?.toUpperCase();
+      document.getElementById('modalTotal').textContent      = formatRupiah(order.total_harga);
+
+      // Items
+      document.getElementById('modalItems').innerHTML = (order.order_items || []).map(item => `
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-gray-600">${item.nama_menu} x${item.jumlah}</span>
+          <span class="font-medium text-gray-700">${formatRupiah(item.subtotal)}</span>
+        </div>`).join('');
+
+      // Stepper
+      renderStepper(order.status);
+
+      // Info box per status
+      const infoMap = {
+        menunggu:     { text: 'Menunggu konfirmasi dari penjual', bg: '#FEF3C7', color: '#92400E' },
+        dikonfirmasi: { text: 'Pesanan dikonfirmasi, segera diproses', bg: '#DBEAFE', color: '#1E40AF' },
+        diproses:     { text: 'Pesanan sedang diproses oleh penjual', bg: '#F0FAF5', color: '#065F46' },
+        siap:         { text: '🎉 Pesanan siap! Silakan ambil di kantin', bg: '#D1FAE5', color: '#065F46' },
+        selesai:      { text: 'Pesanan telah selesai. Selamat menikmati!', bg: '#F3F4F6', color: '#374151' },
+        dibatalkan:   { text: 'Pesanan ini telah dibatalkan', bg: '#FEE2E2', color: '#991B1B' },
+      };
+      const info = infoMap[order.status] || infoMap.menunggu;
+      const infoBox = document.getElementById('modalInfoBox');
+      infoBox.style.background = info.bg;
+      infoBox.style.color      = info.color;
+      document.getElementById('modalInfoText').textContent = info.text;
+
+      document.getElementById('modalOverlay').classList.remove('hidden');
+      document.getElementById('modalOverlay').classList.add('flex');
+    };
+
+    // ── Render stepper horizontal
+    function renderStepper(currentStatus) {
+      const currentIdx = STEP_ORDER.indexOf(currentStatus);
+      const container  = document.getElementById('stepperContainer');
+
+      container.innerHTML = STEPS.map((step, i) => {
+        const isDone   = i < currentIdx;
+        const isActive = i === currentIdx;
+        const isLast   = i === STEPS.length - 1;
+
+        const circleStyle = isDone || isActive
+          ? 'background:#1B6B45; color:white'
+          : 'background:#F3F4F6; color:#9CA3AF';
+
+        return `
+          <div class="flex items-center ${!isLast ? 'flex-1' : ''}">
+            <div class="flex flex-col items-center">
+              <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm
+                          ${isActive ? 'ring-4 ring-green-100' : ''}"
+                   style="${circleStyle}">
+                ${step.icon}
+              </div>
+              <span class="text-xs mt-1 text-center"
+                    style="color:${isDone || isActive ? '#1B6B45' : '#9CA3AF'}">
+                ${step.label}
+              </span>
+            </div>
+            ${!isLast ? `
+              <div class="flex-1 h-0.5 mx-1 mb-4"
+                   style="background:${isDone ? '#1B6B45' : '#E5E7EB'}"></div>
+            ` : ''}
+          </div>`;
+      }).join('');
+    }
+
+    // ── Close modal
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.add('hidden');
+      document.getElementById('modalOverlay').classList.remove('flex');
+    }
+    document.getElementById('btnCloseModal').addEventListener('click', closeModal);
+    document.getElementById('btnCloseModal2').addEventListener('click', closeModal);
+    document.getElementById('modalOverlay').addEventListener('click', (e) => {
+      if (e.target.id === 'modalOverlay') closeModal();
+    });
+
+    // ── Pesan lagi (redirect ke menu dengan tenant tersebut)
+    window.pesanLagi = function (orderId) {
+      window.location.href = 'menu.html';
+    };
+
+    // ── Tab switching
+    document.getElementById('tabAktif').addEventListener('click', () => {
+      activeTab = 'aktif';
+      document.getElementById('tabAktif').style.background = '#1B6B45';
+      document.getElementById('tabAktif').style.color = 'white';
+      document.getElementById('tabRiwayat').style.background = '';
+      document.getElementById('tabRiwayat').style.color = '#6B7280';
+      renderOrders();
+    });
+
+    document.getElementById('tabRiwayat').addEventListener('click', () => {
+      activeTab = 'riwayat';
+      document.getElementById('tabRiwayat').style.background = '#1B6B45';
+      document.getElementById('tabRiwayat').style.color = 'white';
+      document.getElementById('tabAktif').style.background = '';
+      document.getElementById('tabAktif').style.color = '#6B7280';
+      renderOrders();
+    });
+
+    // ── Realtime subscribe: update status pesanan
+    function subscribeRealtime() {
+      orderChannel = window._supabase
+        .channel(`my-orders-${currentUser.id}`)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `mahasiswa_id=eq.${currentUser.id}`
+        }, (payload) => {
+          const idx = allOrders.findIndex(o => o.id === payload.new.id);
+          if (idx !== -1) {
+            allOrders[idx] = { ...allOrders[idx], ...payload.new };
+            renderStats();
+            renderSummaryCards();
+            renderOrders();
+
+            // Jika modal sedang terbuka untuk order ini, update juga
+            if (!document.getElementById('modalOverlay').classList.contains('hidden')) {
+              const orderIdShown = document.getElementById('modalOrderId').textContent;
+              if (orderIdShown === payload.new.order_code) {
+                openModal(payload.new.id);
+              }
+            }
+
+            showToast(`Status pesanan ${payload.new.order_code} diperbarui`);
+          }
+        })
+        .subscribe();
+    }
+
+    // ── Logout
+    document.getElementById('btnLogout').addEventListener('click', async () => {
+      if (orderChannel) window._supabase.removeChannel(orderChannel);
+      if (refreshTimer) clearInterval(refreshTimer);
+      await window._supabase.auth.signOut();
+      window.location.replace('/pages/auth/login.html');
+    });
+
+  </script>
+</body>
+</html>
