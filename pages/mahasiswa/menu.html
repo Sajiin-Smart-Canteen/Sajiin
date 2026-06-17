@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Menu — Smart Canteen</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__SUPABASE_URL__ = 'https://qeilvipuxxtbjfhioefd.supabase.co';
+    window.__SUPABASE_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaWx2aXB1eHh0YmpmaGlvZWZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDExMDAsImV4cCI6MjA5NjYxNzEwMH0.iDrj8fmcbuiJrv-mSOu9XYUrCYLv_Gga-vFQ12G5Pys';
+    window._supabase = window.supabase.createClient(
+      window.__SUPABASE_URL__,
+      window.__SUPABASE_KEY__
+    );
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#1B6B45', light: '#2D9362', dark: '#134E33' },
+            secondary: { DEFAULT: '#F5A623' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- ── SESSION GUARD (onAuthStateChange) ────────────────── -->
+  <script>
+    window._supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        window.location.replace('/pages/auth/login.html');
+        return;
+      }
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        const { data: profile } = await window._supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        if (!profile || profile.role !== 'mahasiswa') {
+          window.location.replace('/pages/auth/login.html');
+          return;
+        }
+        if (typeof init === 'function') init(session, profile);
+      }
+    });
+  </script>
+
+  <div class="flex min-h-screen">
+
+    <!-- ── SIDEBAR ───────────────────────────────────────── -->
+    <aside class="fixed top-0 left-0 h-full w-60 flex flex-col z-30"
+           style="background:#1B6B45">
+      <div class="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+        <div class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg">🍽️</div>
+        <div>
+          <p class="text-white font-bold text-sm leading-tight">Smart Canteen</p>
+          <p class="text-white/50 text-xs">Student Portal</p>
+        </div>
+      </div>
+      <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>📊</span> Dashboard
+        </a>
+        <a href="kantin.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🏪</span> Daftar Kantin
+        </a>
+        <a href="menu.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition" style="background:rgba(255,255,255,0.15); color:white">
+          <span>🍜</span> Pesan Makanan
+        </a>
+        <a href="pesanan.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>📦</span> Pesanan Saya
+        </a>
+        <a href="booking.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🪑</span> Booking Meja
+        </a>
+        <a href="profil.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>👤</span> Profil Saya
+        </a>
+      </nav>
+      <div class="px-3 py-4 border-t border-white/10">
+        <button id="btnLogout" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🚪</span> Keluar
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── MAIN ───────────────────────────────────────────── -->
+    <main class="flex-1 ml-60 flex flex-col min-h-screen">
+
+      <!-- ── HERO + SEARCH ─────────────────────────────────── -->
+      <div class="px-6 pt-6">
+        <div class="rounded-2xl p-6 text-white relative overflow-hidden"
+             style="background:linear-gradient(135deg, #1B6B45 0%, #F5A623 130%)">
+          <h1 class="text-xl font-bold mb-1">🍽️ Menu Spesial Hari Ini</h1>
+          <p class="text-white/80 text-sm mb-4">Pesan makanan favoritmu dari berbagai tenant terbaik di kampus</p>
+
+          <div class="flex gap-6 mb-4">
+            <div>
+              <p id="statMenuTersedia" class="text-2xl font-bold">—</p>
+              <p class="text-xs text-white/70">Menu Tersedia</p>
+            </div>
+            <div>
+              <p id="statTenantAktif" class="text-2xl font-bold">—</p>
+              <p class="text-xs text-white/70">Tenant Aktif</p>
+            </div>
+            <div>
+              <p id="statRatingRata" class="text-2xl font-bold">—</p>
+              <p class="text-xs text-white/70">Rating Rata-Rata</p>
+            </div>
+          </div>
+
+          <!-- Search -->
+          <div class="flex gap-2">
+            <div class="flex-1 bg-white rounded-xl flex items-center px-4 py-2.5">
+              <span class="text-gray-400 mr-2">🔍</span>
+              <input id="searchInput" type="text"
+                     placeholder="Cari menu favoritmu... (nama, tenant, atau kategori)"
+                     class="flex-1 outline-none text-sm text-gray-700" />
+            </div>
+            <button id="btnSearch"
+                    class="px-5 py-2.5 rounded-xl text-sm font-semibold bg-white"
+                    style="color:#1B6B45">
+              Cari
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── FILTER KATEGORI ───────────────────────────────── -->
+      <div class="px-6 pt-4">
+        <div class="flex gap-2 overflow-x-auto pb-1" id="filterKategori">
+          <button data-kategori="semua"
+                  class="filter-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition active"
+                  style="background:#1B6B45; color:white">
+            🍽️ Semua
+          </button>
+          <button data-kategori="makanan"
+                  class="filter-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition bg-white text-gray-600 border border-gray-200">
+            🍛 Makanan
+          </button>
+          <button data-kategori="minuman"
+                  class="filter-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition bg-white text-gray-600 border border-gray-200">
+            🥤 Minuman
+          </button>
+          <button data-kategori="snack"
+                  class="filter-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition bg-white text-gray-600 border border-gray-200">
+            🍿 Snack
+          </button>
+          <button data-kategori="promo"
+                  class="filter-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition bg-white text-gray-600 border border-gray-200">
+            🔥 Promo
+          </button>
+        </div>
+      </div>
+
+      <!-- ── MENU LIST (grouped by tenant) ─────────────────── -->
+      <div class="flex-1 px-6 py-4">
+        <div id="menuContainer" class="space-y-6">
+          <!-- Skeleton -->
+          <div class="animate-pulse space-y-3">
+            <div class="h-5 bg-gray-200 rounded w-32"></div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="h-40 bg-gray-100 rounded-2xl"></div>
+              <div class="h-40 bg-gray-100 rounded-2xl"></div>
+              <div class="h-40 bg-gray-100 rounded-2xl"></div>
+            </div>
+          </div>
+        </div>
+        <div id="emptyState" class="hidden text-center py-16">
+          <p class="text-5xl mb-3">🔍</p>
+          <p class="text-gray-500 font-medium">Menu tidak ditemukan</p>
+          <p class="text-gray-400 text-sm mt-1">Coba kata kunci atau filter lain</p>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ── CART SIDEBAR ─────────────────────────────────────── -->
+    <div id="cartOverlay"
+         class="hidden fixed inset-0 bg-black/30 z-40"></div>
+
+    <aside id="cartSidebar"
+           class="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-50
+                  transform translate-x-full transition-transform duration-300 flex flex-col">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <h3 class="font-semibold text-gray-800">🛒 Keranjang Belanja</h3>
+        <button id="btnCloseCart" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+      </div>
+
+      <div id="cartItems" class="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+        <div class="text-center py-12">
+          <p class="text-4xl mb-2">🛒</p>
+          <p class="text-sm text-gray-400">Keranjang masih kosong</p>
+        </div>
+      </div>
+
+      <!-- Catatan -->
+      <div class="px-5 py-3 border-t border-gray-100">
+        <label class="block text-xs font-medium text-gray-500 mb-1.5">
+          Catatan untuk penjual (opsional)
+        </label>
+        <input id="catatanPesanan" type="text" placeholder="contoh: tidak pakai cabai"
+               class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none" />
+      </div>
+
+      <!-- Summary -->
+      <div class="px-5 py-4 border-t border-gray-100 space-y-2">
+        <div class="flex justify-between text-sm">
+          <span class="text-gray-500">Subtotal</span>
+          <span id="cartSubtotal" class="font-medium text-gray-700">Rp 0</span>
+        </div>
+        <div class="flex justify-between text-base font-bold pt-1">
+          <span class="text-gray-800">Total</span>
+          <span id="cartTotal" style="color:#1B6B45">Rp 0</span>
+        </div>
+        <button id="btnCheckout"
+                class="w-full text-white rounded-xl py-3 font-semibold text-sm mt-2
+                       transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                style="background:#1B6B45">
+          🧾 Checkout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Floating cart button -->
+    <button id="btnOpenCart"
+            class="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-xl
+                   flex items-center justify-center text-white text-xl z-30
+                   transition hover:scale-105"
+            style="background:#1B6B45">
+      🛒
+      <span id="cartBadge"
+            class="hidden absolute -top-1 -right-1 w-6 h-6 rounded-full
+                   text-white text-xs flex items-center justify-center font-bold"
+            style="background:#F5A623">0</span>
+    </button>
+  </div>
+
+  <!-- ── TOAST ─────────────────────────────────────────────── -->
+  <div id="toast"
+       class="hidden fixed top-6 right-6 bg-white shadow-xl rounded-xl px-4 py-3
+              border border-gray-100 z-50 text-sm font-medium text-gray-700">
+  </div>
+
+  <!-- ── LOGIC ──────────────────────────────────────────────── -->
+  <script type="module">
+
+    let currentUser = null;
+    let allMenus    = [];
+    let cart        = []; // { id, nama_menu, harga, foto_menu, jumlah, tenant_id, nama_toko, estimasi_waktu }
+    let activeKategori = 'semua';
+    let searchQuery    = '';
+
+    // ── Helpers
+    function formatRupiah(n) {
+      return 'Rp ' + Number(n).toLocaleString('id-ID');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 2000);
+    }
+
+    // ── INIT (dipanggil dari session guard)
+    window.init = async function (session, profile) {
+      currentUser = { ...session.user, ...profile };
+      await loadMenus();
+    };
+
+    // ── Load semua menu (yang aktif & toko buka)
+    async function loadMenus() {
+      const { data, error } = await window._supabase
+        .from('menus')
+        .select(`
+          id, nama_menu, deskripsi, harga, kategori, foto_menu,
+          estimasi_waktu, stok, status, total_terjual, is_promo, harga_promo,
+          tenants ( id, nama_toko, status, rating, lokasi )
+        `)
+        .eq('status', 'aktif')
+        .order('total_terjual', { ascending: false });
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      // Filter hanya tenant yang buka
+      allMenus = (data || []).filter(m => m.tenants?.status === 'buka');
+
+      renderStats();
+      renderMenus();
+    }
+
+    // ── Render stat hero
+    function renderStats() {
+      const totalMenu = allMenus.length;
+      const tenantIds = new Set(allMenus.map(m => m.tenants?.id));
+      const ratings   = allMenus
+        .map(m => m.tenants?.rating)
+        .filter(r => r > 0);
+      const avgRating = ratings.length
+        ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
+        : '—';
+
+      document.getElementById('statMenuTersedia').textContent = totalMenu;
+      document.getElementById('statTenantAktif').textContent  = tenantIds.size;
+      document.getElementById('statRatingRata').textContent   = avgRating;
+    }
+
+    // ── Filter & render menu (grouped by tenant)
+    function renderMenus() {
+      let filtered = [...allMenus];
+
+      // Filter kategori
+      if (activeKategori === 'promo') {
+        filtered = filtered.filter(m => m.is_promo);
+      } else if (activeKategori !== 'semua') {
+        filtered = filtered.filter(m => m.kategori === activeKategori);
+      }
+
+      // Filter search
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter(m =>
+          m.nama_menu.toLowerCase().includes(q) ||
+          m.tenants?.nama_toko?.toLowerCase().includes(q) ||
+          m.kategori.toLowerCase().includes(q)
+        );
+      }
+
+      const container = document.getElementById('menuContainer');
+      const empty     = document.getElementById('emptyState');
+
+      if (filtered.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      // Group by tenant
+      const grouped = {};
+      filtered.forEach(m => {
+        const tenantId = m.tenants?.id;
+        if (!grouped[tenantId]) {
+          grouped[tenantId] = { tenant: m.tenants, menus: [] };
+        }
+        grouped[tenantId].menus.push(m);
+      });
+
+      container.innerHTML = Object.values(grouped).map(group => `
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-base">🏪</span>
+            <h3 class="font-semibold text-gray-800 text-sm">${group.tenant.nama_toko}</h3>
+            <span class="text-xs text-gray-400">
+              ⭐ ${group.tenant.rating > 0 ? group.tenant.rating.toFixed(1) : '—'}
+            </span>
+            <span class="text-xs font-medium px-2 py-0.5 rounded-full"
+                  style="background:#D1FAE5; color:#065F46">
+              ${group.tenant.menus_count || group.menus.length} menu
+            </span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            ${group.menus.map(menu => renderMenuCard(menu)).join('')}
+          </div>
+        </div>`).join('');
+    }
+
+    // ── Render single menu card
+    function renderMenuCard(menu) {
+      const finalPrice = menu.is_promo && menu.harga_promo
+        ? menu.harga_promo : menu.harga;
+      const isHabis = menu.stok <= 0;
+
+      return `
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden
+                    hover:shadow-md transition group ${isHabis ? 'opacity-60' : ''}">
+          <!-- Image -->
+          <div class="h-32 bg-gray-100 relative overflow-hidden flex items-center justify-center text-3xl">
+            ${menu.foto_menu
+              ? `<img src="${menu.foto_menu}" class="w-full h-full object-cover" />`
+              : '🍽️'}
+            ${menu.is_promo ? `
+              <span class="absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-lg text-white"
+                    style="background:#F5A623">🔥 Promo</span>` : ''}
+            ${isHabis ? `
+              <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                <span class="text-white text-sm font-bold">Stok Habis</span>
+              </div>` : ''}
+          </div>
+
+          <!-- Content -->
+          <div class="p-3">
+            <h4 class="font-semibold text-sm text-gray-800 truncate">${menu.nama_menu}</h4>
+            <p class="text-xs text-gray-400 mt-0.5 line-clamp-2 h-8">
+              ${menu.deskripsi || '-'}
+            </p>
+
+            <div class="flex items-center gap-2 mt-2">
+              <span class="text-xs text-gray-400">⏱ ~${menu.estimasi_waktu} min</span>
+              <span class="text-xs px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-500">
+                ${menu.kategori}
+              </span>
+            </div>
+
+            <div class="flex items-center justify-between mt-3">
+              <div>
+                ${menu.is_promo && menu.harga_promo ? `
+                  <p class="text-xs text-gray-400 line-through">${formatRupiah(menu.harga)}</p>
+                  <p class="text-sm font-bold" style="color:#F5A623">${formatRupiah(finalPrice)}</p>
+                ` : `
+                  <p class="text-sm font-bold" style="color:#1B6B45">${formatRupiah(finalPrice)}</p>
+                `}
+              </div>
+
+              ${isHabis ? `
+                <button disabled
+                        class="text-xs font-semibold px-3 py-1.5 rounded-lg
+                               bg-gray-100 text-gray-400 cursor-not-allowed">
+                  Habis
+                </button>
+              ` : `
+                <button onclick='addToCart(${JSON.stringify({
+                  id: menu.id,
+                  nama_menu: menu.nama_menu,
+                  harga: finalPrice,
+                  foto_menu: menu.foto_menu,
+                  tenant_id: menu.tenants.id,
+                  nama_toko: menu.tenants.nama_toko,
+                  estimasi_waktu: menu.estimasi_waktu
+                }).replace(/'/g, "&apos;")})'
+                        class="text-xs font-semibold px-3 py-1.5 rounded-lg text-white
+                               transition hover:opacity-90 active:scale-95"
+                        style="background:#1B6B45">
+                  + Keranjang
+                </button>
+              `}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // ── CART LOGIC ────────────────────────────────────────────
+
+    window.addToCart = function (item) {
+      // Cek apakah keranjang sudah ada item dari tenant lain
+      if (cart.length > 0 && cart[0].tenant_id !== item.tenant_id) {
+        const confirmSwitch = confirm(
+          `Keranjang berisi menu dari "${cart[0].nama_toko}".\n` +
+          `Menambah menu dari "${item.nama_toko}" akan mengosongkan keranjang.\n\n` +
+          `Lanjutkan?`
+        );
+        if (!confirmSwitch) return;
+        cart = [];
+      }
+
+      const existing = cart.find(c => c.id === item.id);
+      if (existing) {
+        existing.jumlah += 1;
+      } else {
+        cart.push({ ...item, jumlah: 1 });
+      }
+
+      renderCart();
+      showToast(`${item.nama_menu} ditambahkan ke keranjang`);
+    };
+
+    function updateQty(menuId, delta) {
+      const item = cart.find(c => c.id === menuId);
+      if (!item) return;
+
+      item.jumlah += delta;
+      if (item.jumlah <= 0) {
+        cart = cart.filter(c => c.id !== menuId);
+      }
+      renderCart();
+    }
+    window.updateQty = updateQty;
+
+    function removeFromCart(menuId) {
+      cart = cart.filter(c => c.id !== menuId);
+      renderCart();
+    }
+    window.removeFromCart = removeFromCart;
+
+    function renderCart() {
+      const container = document.getElementById('cartItems');
+      const badge      = document.getElementById('cartBadge');
+      const subtotalEl = document.getElementById('cartSubtotal');
+      const totalEl    = document.getElementById('cartTotal');
+      const btnCheckout = document.getElementById('btnCheckout');
+
+      const totalItems = cart.reduce((s, c) => s + c.jumlah, 0);
+      const subtotal   = cart.reduce((s, c) => s + (c.harga * c.jumlah), 0);
+
+      // Badge
+      if (totalItems > 0) {
+        badge.textContent = totalItems;
+        badge.classList.remove('hidden');
+        badge.classList.add('flex');
+      } else {
+        badge.classList.add('hidden');
+      }
+
+      // Items
+      if (cart.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12">
+            <p class="text-4xl mb-2">🛒</p>
+            <p class="text-sm text-gray-400">Keranjang masih kosong</p>
+          </div>`;
+        btnCheckout.disabled = true;
+      } else {
+        container.innerHTML = `
+          <p class="text-xs text-gray-400 mb-1">
+            📍 ${cart[0].nama_toko}
+          </p>
+        ` + cart.map(item => `
+          <div class="flex items-center gap-3 pb-3 border-b border-gray-50">
+            <div class="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0
+                        flex items-center justify-center text-lg">
+              ${item.foto_menu
+                ? `<img src="${item.foto_menu}" class="w-full h-full object-cover" />`
+                : '🍽️'}
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-700 truncate">${item.nama_menu}</p>
+              <p class="text-xs text-gray-400">${formatRupiah(item.harga)}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="updateQty('${item.id}', -1)"
+                      class="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200
+                             flex items-center justify-center text-sm font-bold text-gray-600">
+                −
+              </button>
+              <span class="text-sm font-semibold w-4 text-center">${item.jumlah}</span>
+              <button onclick="updateQty('${item.id}', 1)"
+                      class="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200
+                             flex items-center justify-center text-sm font-bold text-gray-600">
+                +
+              </button>
+            </div>
+            <button onclick="removeFromCart('${item.id}')"
+                    class="text-gray-300 hover:text-red-500 transition text-sm ml-1">
+              🗑
+            </button>
+          </div>`).join('');
+
+        btnCheckout.disabled = false;
+      }
+
+      subtotalEl.textContent = formatRupiah(subtotal);
+      totalEl.textContent    = formatRupiah(subtotal);
+    }
+
+    // ── Toggle cart sidebar
+    document.getElementById('btnOpenCart').addEventListener('click', () => {
+      document.getElementById('cartSidebar').classList.remove('translate-x-full');
+      document.getElementById('cartOverlay').classList.remove('hidden');
+    });
+
+    function closeCart() {
+      document.getElementById('cartSidebar').classList.add('translate-x-full');
+      document.getElementById('cartOverlay').classList.add('hidden');
+    }
+    document.getElementById('btnCloseCart').addEventListener('click', closeCart);
+    document.getElementById('cartOverlay').addEventListener('click', closeCart);
+
+    // ── Checkout
+    document.getElementById('btnCheckout').addEventListener('click', async () => {
+      if (cart.length === 0) return;
+
+      const btn = document.getElementById('btnCheckout');
+      btn.disabled = true;
+      btn.textContent = 'Memproses...';
+
+      try {
+        const tenantId  = cart[0].tenant_id;
+        const totalHarga = cart.reduce((s, c) => s + (c.harga * c.jumlah), 0);
+        const catatan    = document.getElementById('catatanPesanan').value.trim();
+        const maxEstimasi = Math.max(...cart.map(c => c.estimasi_waktu || 15));
+        const estimasiSelesai = new Date(Date.now() + maxEstimasi * 60000).toISOString();
+
+        // 1. Insert order
+        const { data: order, error: orderError } = await window._supabase
+          .from('orders')
+          .insert({
+            mahasiswa_id: currentUser.id,
+            tenant_id: tenantId,
+            total_harga: totalHarga,
+            catatan: catatan || null,
+            metode_pembayaran: 'qris',
+            estimasi_selesai: estimasiSelesai
+          })
+          .select()
+          .single();
+
+        if (orderError) throw orderError;
+
+        // 2. Insert order items
+        const orderItems = cart.map(item => ({
+          order_id: order.id,
+          menu_id: item.id,
+          nama_menu: item.nama_menu,
+          harga: item.harga,
+          foto_menu: item.foto_menu,
+          jumlah: item.jumlah,
+          subtotal: item.harga * item.jumlah
+        }));
+
+        const { error: itemsError } = await window._supabase
+          .from('order_items')
+          .insert(orderItems);
+
+        if (itemsError) throw itemsError;
+
+        // 3. Update total_terjual per menu
+        for (const item of cart) {
+          await window._supabase.rpc('increment_terjual', {
+            menu_id: item.id,
+            qty: item.jumlah
+          }).catch(() => {
+            // Fallback jika function rpc belum dibuat — update manual
+            window._supabase
+              .from('menus')
+              .select('total_terjual')
+              .eq('id', item.id)
+              .single()
+              .then(({ data }) => {
+                if (data) {
+                  window._supabase
+                    .from('menus')
+                    .update({ total_terjual: data.total_terjual + item.jumlah })
+                    .eq('id', item.id);
+                }
+              });
+          });
+        }
+
+        // 4. Notif ke tenant
+        const { data: tenant } = await window._supabase
+          .from('tenants')
+          .select('user_id')
+          .eq('id', tenantId)
+          .single();
+
+        if (tenant) {
+          await window._supabase.from('notifications').insert({
+            user_id: tenant.user_id,
+            judul: 'Pesanan Baru Masuk!',
+            pesan: `Order ${order.order_code} telah masuk. Total: ${formatRupiah(totalHarga)}`,
+            tipe: 'pesanan'
+          });
+        }
+
+        // 5. Sukses — kosongkan cart & redirect
+        cart = [];
+        renderCart();
+        closeCart();
+        showToast('✅ Pesanan berhasil dibuat!');
+
+        setTimeout(() => {
+          window.location.href = 'pesanan.html';
+        }, 1000);
+
+      } catch (err) {
+        console.error(err);
+        showToast('❌ Gagal membuat pesanan, coba lagi');
+        btn.disabled = false;
+        btn.textContent = '🧾 Checkout';
+      }
+    });
+
+    // ── Filter kategori
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeKategori = btn.dataset.kategori;
+
+        document.querySelectorAll('.filter-btn').forEach(b => {
+          b.style.background = 'white';
+          b.classList.remove('text-white');
+          b.classList.add('text-gray-600', 'border', 'border-gray-200');
+          b.style.color = '';
+        });
+
+        btn.classList.remove('text-gray-600', 'border', 'border-gray-200');
+        btn.style.background = '#1B6B45';
+        btn.style.color = 'white';
+
+        renderMenus();
+      });
+    });
+
+    // ── Search
+    let searchTimeout;
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        searchQuery = e.target.value;
+        renderMenus();
+      }, 300);
+    });
+
+    document.getElementById('btnSearch').addEventListener('click', () => {
+      searchQuery = document.getElementById('searchInput').value;
+      renderMenus();
+    });
+
+    // ── Logout
+    document.getElementById('btnLogout').addEventListener('click', async () => {
+      await window._supabase.auth.signOut();
+      window.location.replace('/pages/auth/login.html');
+    });
+
+  </script>
+</body>
+</html>
