@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pengaturan Toko — Smart Canteen</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__SUPABASE_URL__ = 'https://qeilvipuxxtbjfhioefd.supabase.co';
+    window.__SUPABASE_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaWx2aXB1eHh0YmpmaGlvZWZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDExMDAsImV4cCI6MjA5NjYxNzEwMH0.iDrj8fmcbuiJrv-mSOu9XYUrCYLv_Gga-vFQ12G5Pys';
+    window._supabase = window.supabase.createClient(
+      window.__SUPABASE_URL__,
+      window.__SUPABASE_KEY__
+    );
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#1B6B45', light: '#2D9362', dark: '#134E33' },
+            secondary: { DEFAULT: '#F5A623' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- ── SESSION GUARD ─────────────────────────────────── -->
+  <script>
+    window._supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        window.location.replace('/pages/auth/login.html');
+        return;
+      }
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        const { data: profile } = await window._supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        if (!profile || profile.role !== 'tenant') {
+          window.location.replace('/pages/auth/login.html');
+          return;
+        }
+        if (typeof init === 'function') init(session, profile);
+      }
+    });
+  </script>
+
+  <div class="flex min-h-screen">
+
+    <!-- ── SIDEBAR ───────────────────────────────────────── -->
+    <aside class="fixed top-0 left-0 h-full w-60 flex flex-col z-30"
+           style="background:#1B6B45">
+      <div class="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+        <div class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg">🍽️</div>
+        <div>
+          <p class="text-white font-bold text-sm leading-tight">Smart Canteen</p>
+          <p class="text-white/50 text-xs">Seller Portal</p>
+        </div>
+      </div>
+      <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>📊</span> Dashboard
+        </a>
+        <a href="pesanan-masuk.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>📋</span> Pesanan Masuk
+        </a>
+        <a href="kelola-menu.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🍜</span> Kelola Menu
+        </a>
+        <a href="reduce-waste.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>♻️</span> Reduce Waste
+        </a>
+        <a href="analytics.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>📈</span> Analytics
+        </a>
+        <a href="pengaturan.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition" style="background:rgba(255,255,255,0.15); color:white">
+          <span>⚙️</span> Pengaturan Toko
+        </a>
+        <a href="profil.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>👤</span> Profil Saya
+        </a>
+      </nav>
+      <div class="px-3 py-4 border-t border-white/10">
+        <button id="btnLogout" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition">
+          <span>🚪</span> Keluar
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── MAIN ───────────────────────────────────────────── -->
+    <main class="flex-1 ml-60 flex flex-col min-h-screen">
+
+      <!-- ── TOPBAR ─────────────────────────────────────── -->
+      <header class="sticky top-0 z-20 bg-white border-b border-gray-100
+                     px-6 py-3 flex items-center justify-between">
+        <div>
+          <h2 class="font-semibold text-gray-800 text-sm">⚙️ Pengaturan Toko</h2>
+          <p class="text-xs text-gray-400">Kelola informasi dan tampilan toko kamu</p>
+        </div>
+        <!-- Status toko toggle -->
+        <button id="btnToggleStatus"
+                class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm
+                       font-semibold border transition">
+          <span id="statusLabel">Memuat...</span>
+        </button>
+      </header>
+
+      <!-- ── BODY ───────────────────────────────────────── -->
+      <div class="flex-1 p-6 space-y-6">
+
+        <!-- ── INFO TOKO CARD (preview) ───────────────── -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div class="flex items-center gap-4">
+            <div id="fotoTokoPreview"
+                 class="w-16 h-16 rounded-2xl bg-gray-100 overflow-hidden
+                        flex items-center justify-center text-3xl shrink-0">
+              🏪
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 id="previewNamaToko"
+                  class="font-bold text-gray-800">—</h3>
+              <p id="previewLokasi"
+                 class="text-sm text-gray-400 mt-0.5">—</p>
+              <div class="flex items-center gap-2 mt-1.5">
+                <span id="previewStatus"
+                      class="text-xs font-medium px-2 py-0.5 rounded-full">—</span>
+                <span class="text-xs text-gray-400">
+                  ⭐ <span id="previewRating">—</span>
+                </span>
+                <span class="text-xs text-gray-400">
+                  🕐 <span id="previewJam">—</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── FORM INFORMASI DASAR ────────────────────── -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <div class="px-5 py-4 border-b border-gray-50">
+            <h3 class="font-semibold text-gray-800 text-sm">🏪 Informasi Toko</h3>
+          </div>
+          <div class="p-5 space-y-4">
+
+            <div id="alertSuccess"
+                 class="hidden bg-green-50 border border-green-200
+                        text-green-700 px-4 py-3 rounded-lg text-sm">
+              ✅ Pengaturan toko berhasil disimpan
+            </div>
+            <div id="alertError"
+                 class="hidden bg-red-50 border border-red-200
+                        text-red-700 px-4 py-3 rounded-lg text-sm"></div>
+
+            <!-- Foto toko -->
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">
+                📷 Foto Toko
+              </label>
+              <div class="flex items-center gap-4">
+                <div id="fotoInputPreview"
+                     class="w-20 h-20 rounded-xl bg-gray-100 overflow-hidden
+                            flex items-center justify-center text-3xl shrink-0">
+                  🏪
+                </div>
+                <div>
+                  <input id="inputFotoToko" type="file"
+                         accept="image/*" class="hidden" />
+                  <button onclick="document.getElementById('inputFotoToko').click()"
+                          class="text-sm font-medium px-4 py-2 rounded-xl border
+                                 border-gray-200 text-gray-600 hover:bg-gray-50 transition">
+                    Ganti Foto
+                  </button>
+                  <p class="text-xs text-gray-400 mt-1">JPG, PNG. Maks 2MB</p>
+                  <input id="inputFotoUrl" type="hidden" />
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              <!-- Nama toko -->
+              <div class="md:col-span-2">
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">
+                  Nama Toko <span class="text-red-500">*</span>
+                </label>
+                <input id="inputNamaToko" type="text"
+                       placeholder="contoh: Warung Mba Uti"
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5
+                              text-sm outline-none focus:border-green-500" />
+              </div>
+
+              <!-- Deskripsi -->
+              <div class="md:col-span-2">
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">
+                  Deskripsi Toko
+                </label>
+                <textarea id="inputDeskripsi" rows="3"
+                          placeholder="Ceritakan tentang toko kamu..."
+                          class="w-full border border-gray-200 rounded-xl px-3 py-2.5
+                                 text-sm outline-none focus:border-green-500 resize-none">
+                </textarea>
+              </div>
+
+              <!-- Lokasi -->
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">
+                  Lokasi / Gedung
+                </label>
+                <input id="inputLokasi" type="text"
+                       placeholder="contoh: Kantin Utara, Kampus A"
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5
+                              text-sm outline-none focus:border-green-500" />
+              </div>
+
+              <!-- Lantai -->
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">
+                  Lantai / Area
+                </label>
+                <input id="inputLantai" type="text"
+                       placeholder="contoh: Lantai 1"
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5
+                              text-sm outline-none focus:border-green-500" />
+              </div>
+
+              <!-- Nomor telepon -->
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">
+                  Nomor Telepon
+                </label>
+                <input id="inputTelepon" type="tel"
+                       placeholder="contoh: 0812-3456-7890"
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5
+                              text-sm outline-none focus:border-green-500" />
+              </div>
+
+            </div>
+
+            <!-- Kategori menu -->
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">
+                Kategori Menu yang Dijual
+              </label>
+              <div class="flex gap-3 flex-wrap">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="katMakanan" value="makanan"
+                         class="w-4 h-4 rounded accent-green-600" />
+                  <span class="text-sm text-gray-700">🍛 Makanan</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="katMinuman" value="minuman"
+                         class="w-4 h-4 rounded accent-green-600" />
+                  <span class="text-sm text-gray-700">🥤 Minuman</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="katSnack" value="snack"
+                         class="w-4 h-4 rounded accent-green-600" />
+                  <span class="text-sm text-gray-700">🍿 Snack</span>
+                </label>
+              </div>
+            </div>
+
+            <button id="btnSimpanInfo"
+                    class="text-white rounded-xl px-6 py-2.5 font-semibold text-sm
+                           transition hover:opacity-90"
+                    style="background:#1B6B45">
+              💾 Simpan Informasi Toko
+            </button>
+          </div>
+        </div>
+
+        <!-- ── FORM JAM OPERASIONAL ────────────────────── -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <div class="px-5 py-4 border-b border-gray-50">
+            <h3 class="font-semibold text-gray-800 text-sm">🕐 Jam Operasional</h3>
+          </div>
+          <div class="p-5 space-y-4">
+
+            <div id="alertJamSuccess"
+                 class="hidden bg-green-50 border border-green-200
+                        text-green-700 px-4 py-3 rounded-lg text-sm">
+              ✅ Jam operasional berhasil disimpan
+            </div>
+            <div id="alertJamError"
+                 class="hidden bg-red-50 border border-red-200
+                        text-red-700 px-4 py-3 rounded-lg text-sm"></div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">
+                  Jam Buka
+                </label>
+                <input id="inputJamBuka" type="time"
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5
+                              text-sm outline-none focus:border-green-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">
+                  Jam Tutup
+                </label>
+                <input id="inputJamTutup" type="time"
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5
+                              text-sm outline-none focus:border-green-500" />
+              </div>
+            </div>
+
+            <!-- Preset jam -->
+            <div>
+              <p class="text-xs text-gray-400 mb-2">Preset cepat:</p>
+              <div class="flex gap-2 flex-wrap">
+                <button onclick="setJam('07:00','15:00')"
+                        class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100
+                               text-gray-600 hover:bg-gray-200 transition">
+                  07:00 - 15:00
+                </button>
+                <button onclick="setJam('08:00','17:00')"
+                        class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100
+                               text-gray-600 hover:bg-gray-200 transition">
+                  08:00 - 17:00
+                </button>
+                <button onclick="setJam('07:00','20:00')"
+                        class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100
+                               text-gray-600 hover:bg-gray-200 transition">
+                  07:00 - 20:00
+                </button>
+                <button onclick="setJam('10:00','22:00')"
+                        class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100
+                               text-gray-600 hover:bg-gray-200 transition">
+                  10:00 - 22:00
+                </button>
+              </div>
+            </div>
+
+            <button id="btnSimpanJam"
+                    class="text-white rounded-xl px-6 py-2.5 font-semibold text-sm
+                           transition hover:opacity-90"
+                    style="background:#1B6B45">
+              💾 Simpan Jam Operasional
+            </button>
+          </div>
+        </div>
+
+        <!-- ── STATUS TOKO ─────────────────────────────── -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <div class="px-5 py-4 border-b border-gray-50">
+            <h3 class="font-semibold text-gray-800 text-sm">🟢 Status Toko</h3>
+          </div>
+          <div class="p-5">
+            <div class="flex items-center justify-between p-4 rounded-xl"
+                 style="background:#F0FAF5">
+              <div>
+                <p class="text-sm font-semibold text-gray-700">
+                  Status Saat Ini:
+                  <span id="statusText" class="ml-1" style="color:#1B6B45">—</span>
+                </p>
+                <p class="text-xs text-gray-400 mt-0.5">
+                  Mahasiswa hanya bisa memesan ke toko yang sedang buka
+                </p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input id="toggleStatusInput" type="checkbox" class="sr-only peer" />
+                <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full
+                            peer peer-checked:after:translate-x-7 peer-checked:bg-green-600
+                            after:content-[''] after:absolute after:top-0.5 after:left-[2px]
+                            after:bg-white after:rounded-full after:h-6 after:w-6
+                            after:transition-all"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ── TOAST ─────────────────────────────────────────────── -->
+  <div id="toast"
+       class="hidden fixed top-6 right-6 bg-white shadow-xl rounded-xl px-4 py-3
+              border border-gray-100 z-50 text-sm font-medium text-gray-700">
+  </div>
+
+  <!-- ── LOGIC ──────────────────────────────────────────────── -->
+  <script type="module">
+
+    let currentUser   = null;
+    let currentTenant = null;
+    let fotoFile      = null;
+
+    // ── Helpers
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.remove('hidden');
+      setTimeout(() => t.classList.add('hidden'), 2500);
+    }
+    function showAlert(id, msg = null) {
+      ['alertSuccess','alertError','alertJamSuccess','alertJamError']
+        .forEach(x => document.getElementById(x)?.classList.add('hidden'));
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (msg) el.textContent = msg;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 3000);
+    }
+
+    // ── INIT
+    window.init = async function (session, profile) {
+      currentUser = { ...session.user, ...profile };
+      await loadTenant();
+    };
+
+    // ── Load data tenant & isi form
+    async function loadTenant() {
+      const { data: tenant, error } = await window._supabase
+        .from('tenants')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .single();
+
+      if (error || !tenant) return;
+      currentTenant = tenant;
+
+      // ── Preview card
+      renderPreview(tenant);
+
+      // ── Isi form informasi toko
+      document.getElementById('inputNamaToko').value  = tenant.nama_toko || '';
+      document.getElementById('inputDeskripsi').value = tenant.deskripsi || '';
+      document.getElementById('inputLokasi').value    = tenant.lokasi || '';
+      document.getElementById('inputLantai').value    = tenant.lantai || '';
+      document.getElementById('inputTelepon').value   = tenant.nomor_telepon || '';
+      document.getElementById('inputFotoUrl').value   = tenant.foto_toko || '';
+
+      if (tenant.foto_toko) {
+        document.getElementById('fotoTokoPreview').innerHTML =
+          `<img src="${tenant.foto_toko}" class="w-full h-full object-cover" />`;
+        document.getElementById('fotoInputPreview').innerHTML =
+          `<img src="${tenant.foto_toko}" class="w-full h-full object-cover rounded-xl" />`;
+      }
+
+      // Kategori checkboxes
+      const kategori = tenant.kategori || [];
+      document.getElementById('katMakanan').checked = kategori.includes('makanan');
+      document.getElementById('katMinuman').checked = kategori.includes('minuman');
+      document.getElementById('katSnack').checked   = kategori.includes('snack');
+
+      // ── Isi jam operasional
+      document.getElementById('inputJamBuka').value  =
+        (tenant.jam_buka  || '07:00').slice(0, 5);
+      document.getElementById('inputJamTutup').value =
+        (tenant.jam_tutup || '22:00').slice(0, 5);
+
+      // ── Status toggle
+      const isOpen = tenant.status === 'buka';
+      document.getElementById('toggleStatusInput').checked = isOpen;
+      renderStatusButton(tenant.status);
+    }
+
+    // ── Render preview card atas
+    function renderPreview(tenant) {
+      const isOpen = tenant.status === 'buka';
+
+      document.getElementById('previewNamaToko').textContent =
+        tenant.nama_toko || '—';
+      document.getElementById('previewLokasi').textContent =
+        [tenant.lokasi, tenant.lantai].filter(Boolean).join(', ') || '—';
+      document.getElementById('previewRating').textContent =
+        tenant.rating > 0 ? tenant.rating.toFixed(1) : '—';
+      document.getElementById('previewJam').textContent =
+        `${(tenant.jam_buka || '07:00').slice(0,5)} – ${(tenant.jam_tutup || '22:00').slice(0,5)}`;
+
+      const statusEl = document.getElementById('previewStatus');
+      statusEl.textContent      = isOpen ? '🟢 Buka' : '🔴 Tutup';
+      statusEl.style.background = isOpen ? '#D1FAE5' : '#FEE2E2';
+      statusEl.style.color      = isOpen ? '#065F46' : '#991B1B';
+
+      if (tenant.foto_toko) {
+        document.getElementById('fotoTokoPreview').innerHTML =
+          `<img src="${tenant.foto_toko}" class="w-full h-full object-cover" />`;
+      }
+    }
+
+    // ── Render tombol toggle status di topbar
+    function renderStatusButton(status) {
+      const btn = document.getElementById('btnToggleStatus');
+      const lbl = document.getElementById('statusLabel');
+      const txt = document.getElementById('statusText');
+
+      if (status === 'buka') {
+        btn.style.cssText   = 'background:#D1FAE5; color:#065F46; border-color:#6EE7B7';
+        lbl.textContent     = '🟢 Toko Buka';
+        txt.textContent     = 'Buka';
+        txt.style.color     = '#065F46';
+      } else {
+        btn.style.cssText   = 'background:#F3F4F6; color:#6B7280; border-color:#E5E7EB';
+        lbl.textContent     = '🔴 Toko Tutup';
+        txt.textContent     = 'Tutup';
+        txt.style.color     = '#991B1B';
+      }
+    }
+
+    // ── Toggle status dari topbar button
+    document.getElementById('btnToggleStatus').addEventListener('click', async () => {
+      await toggleStatus();
+    });
+
+    // ── Toggle status dari switch
+    document.getElementById('toggleStatusInput').addEventListener('change', async (e) => {
+      await toggleStatus(e.target.checked ? 'buka' : 'tutup');
+    });
+
+    async function toggleStatus(forceStatus = null) {
+      if (!currentTenant) return;
+      const newStatus = forceStatus
+        || (currentTenant.status === 'buka' ? 'tutup' : 'buka');
+
+      const { error } = await window._supabase
+        .from('tenants')
+        .update({ status: newStatus })
+        .eq('id', currentTenant.id);
+
+      if (!error) {
+        currentTenant.status = newStatus;
+        renderStatusButton(newStatus);
+        renderPreview(currentTenant);
+        document.getElementById('toggleStatusInput').checked = newStatus === 'buka';
+        showToast(`Toko sekarang ${newStatus === 'buka' ? 'dibuka' : 'ditutup'}`);
+      } else {
+        showToast('❌ Gagal mengubah status');
+      }
+    }
+
+    // ── Preview foto toko
+    document.getElementById('inputFotoToko').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) {
+        showToast('❌ Ukuran foto maksimal 2MB');
+        return;
+      }
+      fotoFile = file;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const src = ev.target.result;
+        document.getElementById('fotoInputPreview').innerHTML =
+          `<img src="${src}" class="w-full h-full object-cover rounded-xl" />`;
+        document.getElementById('fotoTokoPreview').innerHTML =
+          `<img src="${src}" class="w-full h-full object-cover" />`;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // ── Upload foto toko ke Supabase Storage
+    async function uploadFotoToko(file) {
+      const ext      = file.name.split('.').pop();
+      const fileName = `toko/${currentTenant.id}.${ext}`;
+
+      const { error } = await window._supabase.storage
+        .from('store-photos')
+        .upload(fileName, file, { upsert: true });
+
+      if (error) throw new Error(`Upload gagal: ${error.message}`);
+
+      const { data } = window._supabase.storage
+        .from('store-photos')
+        .getPublicUrl(fileName);
+
+      return data.publicUrl;
+    }
+
+    // ── Preset jam operasional
+    window.setJam = function (buka, tutup) {
+      document.getElementById('inputJamBuka').value  = buka;
+      document.getElementById('inputJamTutup').value = tutup;
+    };
+
+    // ── Simpan informasi toko
+    document.getElementById('btnSimpanInfo').addEventListener('click', async () => {
+      const btn       = document.getElementById('btnSimpanInfo');
+      const namaToko  = document.getElementById('inputNamaToko').value.trim();
+      const deskripsi = document.getElementById('inputDeskripsi').value.trim();
+      const lokasi    = document.getElementById('inputLokasi').value.trim();
+      const lantai    = document.getElementById('inputLantai').value.trim();
+      const telepon   = document.getElementById('inputTelepon').value.trim();
+
+      if (!namaToko) {
+        showAlert('alertError', 'Nama toko tidak boleh kosong');
+        return;
+      }
+
+      // Ambil kategori yang dicentang
+      const kategori = ['makanan','minuman','snack'].filter(k =>
+        document.getElementById(
+          `kat${k.charAt(0).toUpperCase() + k.slice(1)}`
+        ).checked
+      );
+
+      if (kategori.length === 0) {
+        showAlert('alertError', 'Pilih minimal satu kategori menu');
+        return;
+      }
+
+      btn.disabled    = true;
+      btn.textContent = 'Menyimpan...';
+
+      try {
+        // Upload foto jika ada file baru
+        let fotoUrl = document.getElementById('inputFotoUrl').value || null;
+        if (fotoFile) {
+          fotoUrl = await uploadFotoToko(fotoFile);
+          fotoFile = null;
+        }
+
+        const { error } = await window._supabase
+          .from('tenants')
+          .update({
+            nama_toko:      namaToko,
+            deskripsi:      deskripsi || null,
+            lokasi:         lokasi || null,
+            lantai:         lantai || null,
+            nomor_telepon:  telepon || null,
+            kategori,
+            foto_toko:      fotoUrl,
+            updated_at:     new Date().toISOString()
+          })
+          .eq('id', currentTenant.id);
+
+        if (error) throw error;
+
+        // Update local state
+        currentTenant = {
+          ...currentTenant,
+          nama_toko: namaToko,
+          deskripsi, lokasi, lantai,
+          nomor_telepon: telepon,
+          kategori, foto_toko: fotoUrl
+        };
+
+        renderPreview(currentTenant);
+        document.getElementById('inputFotoUrl').value = fotoUrl || '';
+        showAlert('alertSuccess');
+
+      } catch (err) {
+        console.error(err);
+        showAlert('alertError', err.message || 'Gagal menyimpan');
+      } finally {
+        btn.disabled    = false;
+        btn.textContent = '💾 Simpan Informasi Toko';
+      }
+    });
+
+    // ── Simpan jam operasional
+    document.getElementById('btnSimpanJam').addEventListener('click', async () => {
+      const btn      = document.getElementById('btnSimpanJam');
+      const jamBuka  = document.getElementById('inputJamBuka').value;
+      const jamTutup = document.getElementById('inputJamTutup').value;
+
+      if (!jamBuka || !jamTutup) {
+        showAlert('alertJamError', 'Jam buka dan tutup wajib diisi');
+        return;
+      }
+
+      if (jamBuka >= jamTutup) {
+        showAlert('alertJamError', 'Jam buka harus lebih awal dari jam tutup');
+        return;
+      }
+
+      btn.disabled    = true;
+      btn.textContent = 'Menyimpan...';
+
+      try {
+        const { error } = await window._supabase
+          .from('tenants')
+          .update({
+            jam_buka:   jamBuka,
+            jam_tutup:  jamTutup,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', currentTenant.id);
+
+        if (error) throw error;
+
+        currentTenant.jam_buka  = jamBuka;
+        currentTenant.jam_tutup = jamTutup;
+
+        renderPreview(currentTenant);
+        showAlert('alertJamSuccess');
+
+      } catch (err) {
+        console.error(err);
+        showAlert('alertJamError', err.message || 'Gagal menyimpan jam');
+      } finally {
+        btn.disabled    = false;
+        btn.textContent = '💾 Simpan Jam Operasional';
+      }
+    });
+
+    // ── Logout
+    document.getElementById('btnLogout').addEventListener('click', async () => {
+      await window._supabase.auth.signOut();
+      window.location.replace('/pages/auth/login.html');
+    });
+
+  </script>
+</body>
+</html>
