@@ -931,192 +931,257 @@
   </footer>
 
   <!-- ── LOGIC ──────────────────────────────────────────────── -->
-  <script type="module">
+<script type="module">
 
-    // ── Cek session — jika sudah login tampilkan tombol dashboard
-    (async () => {
-      const { data: { session } } = await window._supabase.auth.getSession();
-      if (!session) return;
+  // ── Helper: tampilkan toast
+  function showToast(msg, type = 'info') {
+    const toast   = document.getElementById('toastHomepage');
+    const icon    = document.getElementById('toastIcon');
+    const msgEl   = document.getElementById('toastMsg');
 
-      const { data: profile } = await window._supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
+    const map = {
+      info:    { icon: 'ℹ️',  bg: '#1B6B45' },
+      warning: { icon: '⚠️',  bg: '#F5A623' },
+      error:   { icon: '❌',  bg: '#EF4444' },
+      success: { icon: '✅',  bg: '#1B6B45' },
+    };
 
-      if (!profile) return;
+    const cfg = map[type] || map.info;
+    icon.textContent              = cfg.icon;
+    msgEl.textContent             = msg;
+    toast.style.background        = cfg.bg;
+    toast.classList.remove('hidden');
+    toast.classList.add('flex');
 
-      const redirect = profile.role === 'tenant'
-        ? 'pages/tenant/dashboard.html'
-        : 'pages/mahasiswa/dashboard.html';
-
-      // Sembunyikan masuk/daftar, tampilkan dashboard
-      document.getElementById('btnNavMasuk').classList.add('hidden');
-      document.getElementById('btnNavDaftar').classList.add('hidden');
-      const btnDash = document.getElementById('btnNavDashboard');
-      btnDash.href = redirect;
-      btnDash.classList.remove('hidden');
-    })();
-
-    // ── Load stats dari DB
-    async function loadStats() {
-      const [
-        { count: tenantCount },
-        { count: mhsCount },
-        { count: pesananCount }
-      ] = await Promise.all([
-        window._supabase
-          .from('tenants')
-          .select('*', { count: 'exact', head: true })
-          .eq('is_active', true),
-        window._supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .eq('role', 'mahasiswa'),
-        window._supabase
-          .from('orders')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'selesai')
-      ]);
-
-      const fmt = (n) => n >= 1000 ? `${(n/1000).toFixed(1)}K+` : `${n}+`;
-
-      document.getElementById('statTenant').textContent    = fmt(tenantCount || 0);
-      document.getElementById('statMahasiswa').textContent = fmt(mhsCount || 0);
-      document.getElementById('statPesanan').textContent   = fmt(pesananCount || 0);
-
-      document.getElementById('statTenantAbout').textContent = tenantCount || 0;
-      document.getElementById('statMhsAbout').textContent    = mhsCount || 0;
-    }
-
-    // ── Load tenant dari DB
-    async function loadTenants() {
-      const { data } = await window._supabase
-        .from('tenants')
-        .select('id, nama_toko, deskripsi, rating, status, foto_toko, kategori')
-        .eq('is_active', true)
-        .order('rating', { ascending: false })
-        .limit(6);
-
-      const grid = document.getElementById('tenantGrid');
-
-      if (!data || data.length === 0) {
-        grid.innerHTML = `
-          <div class="col-span-3 text-center py-8">
-            <p class="text-gray-400 text-sm">
-              Belum ada tenant terdaftar. Jadilah yang pertama!
-            </p>
-          </div>`;
-        return;
-      }
-
-      grid.innerHTML = data.map(t => {
-        const isOpen = t.status === 'buka';
-        return `
-          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4
-                      flex items-center gap-3 card-hover">
-            <div class="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0
-                        flex items-center justify-center text-2xl">
-              ${t.foto_toko
-                ? `<img src="${t.foto_toko}" class="w-full h-full object-cover" />`
-                : '🏪'}
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
-                <p class="text-sm font-semibold text-gray-700 truncate">
-                  ${t.nama_toko}
-                </p>
-                <span class="text-xs px-1.5 py-0.5 rounded-full shrink-0 font-medium"
-                      style="background:${isOpen ? '#D1FAE5' : '#FEE2E2'};
-                             color:${isOpen ? '#065F46' : '#991B1B'}">
-                  ${isOpen ? 'Buka' : 'Tutup'}
-                </span>
-              </div>
-              <p class="text-xs text-gray-400 truncate mt-0.5">
-                ${t.deskripsi || (t.kategori || []).join(', ') || '—'}
-              </p>
-              <p class="text-xs mt-0.5" style="color:#F5A623">
-                ⭐ ${t.rating > 0 ? t.rating.toFixed(1) : '—'}
-              </p>
-            </div>
-          </div>`;
-      }).join('');
-    }
-
-    // ── Kirim saran (simpan ke notifikasi atau tabel baru)
-document.getElementById('btnKirimSaran').addEventListener('click', async () => {
-  const btn   = document.getElementById('btnKirimSaran');
-  const nama  = document.getElementById('saranNama').value.trim();
-  const email = document.getElementById('saranEmail').value.trim();
-  const pesan = document.getElementById('saranPesan').value.trim();
-
-  if (!nama || !pesan) {
-    alert('Nama dan pesan wajib diisi');
-    return;
-  }
-
-  btn.disabled    = true;
-  btn.textContent = 'Mengirim...';
-
-  try {
-    await emailjs.send(
-      'service_9z3zgcx',   
-      'template_6omf9zt', 
-      {
-        nama,
-        email:  email || 'Tidak diisi',
-        pesan,
-        waktu:  new Date().toLocaleString('id-ID')
-      }
-    );
-
-    document.getElementById('saranNama').value  = '';
-    document.getElementById('saranEmail').value = '';
-    document.getElementById('saranPesan').value = '';
-
-    document.getElementById('saranSuccess').classList.remove('hidden');
     setTimeout(() => {
-      document.getElementById('saranSuccess').classList.add('hidden');
-    }, 4000);
-
-  } catch (err) {
-    console.error(err);
-    alert('Gagal mengirim saran. Coba lagi.');
-  } finally {
-    btn.disabled    = false;
-    btn.textContent = '📨 Kirim Saran';
+      toast.classList.add('hidden');
+      toast.classList.remove('flex');
+    }, 3000);
   }
-});
 
-    // ── Mobile menu toggle
-    document.getElementById('btnMobileMenu').addEventListener('click', () => {
-      document.getElementById('mobileMenu').classList.toggle('hidden');
-    });
+  // ── Cek login sebelum masuk ke halaman tertentu
+  window.cekLoginSebelumMasuk = async function (tujuan) {
+    const { data: { session } } = await window._supabase.auth.getSession();
 
-    // ── Scroll animation (AOS manual)
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('aos-animate');
+    if (!session) {
+      showToast('Kamu harus login terlebih dahulu', 'warning');
+      setTimeout(() => {
+        window.location.href = 'pages/auth/login.html';
+      }, 1500);
+      return;
+    }
+
+    // Cek role sesuai tujuan
+    const { data: profile } = await window._supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single();
+
+    if (!profile) {
+      showToast('Akun tidak ditemukan, silakan daftar dulu', 'error');
+      setTimeout(() => {
+        window.location.href = 'pages/auth/register.html';
+      }, 2000);
+      return;
+    }
+
+    // Jika tujuan halaman mahasiswa tapi role tenant, redirect ke dashboard tenant
+    if (tujuan.includes('mahasiswa') && profile.role === 'tenant') {
+      window.location.href = 'pages/tenant/dashboard.html';
+      return;
+    }
+
+    window.location.href = tujuan;
+  };
+
+  // ── Cek session — jika sudah login tampilkan tombol dashboard
+  (async () => {
+    const { data: { session } } = await window._supabase.auth.getSession();
+    if (!session) return;
+
+    const { data: profile } = await window._supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single();
+
+    if (!profile) return;
+
+    const redirect = profile.role === 'tenant'
+      ? 'pages/tenant/dashboard.html'
+      : 'pages/mahasiswa/dashboard.html';
+
+    document.getElementById('btnNavMasuk').classList.add('hidden');
+    document.getElementById('btnNavDaftar').classList.add('hidden');
+    const btnDash = document.getElementById('btnNavDashboard');
+    btnDash.href = redirect;
+    btnDash.classList.remove('hidden');
+  })();
+
+  // ── Load stats dari DB
+  async function loadStats() {
+    const [
+      { count: tenantCount },
+      { count: mhsCount },
+      { count: pesananCount }
+    ] = await Promise.all([
+      window._supabase
+        .from('tenants')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true),
+      window._supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'mahasiswa'),
+      window._supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'selesai')
+    ]);
+
+    const fmt = (n) => n >= 1000 ? `${(n/1000).toFixed(1)}K+` : `${n}+`;
+
+    document.getElementById('statTenant').textContent    = fmt(tenantCount || 0);
+    document.getElementById('statMahasiswa').textContent = fmt(mhsCount || 0);
+    document.getElementById('statPesanan').textContent   = fmt(pesananCount || 0);
+
+    document.getElementById('statTenantAbout').textContent = tenantCount || 0;
+    document.getElementById('statMhsAbout').textContent    = mhsCount || 0;
+  }
+
+  // ── Load tenant dari DB
+  async function loadTenants() {
+    const { data } = await window._supabase
+      .from('tenants')
+      .select('id, nama_toko, deskripsi, rating, status, foto_toko, kategori')
+      .eq('is_active', true)
+      .order('rating', { ascending: false })
+      .limit(6);
+
+    const grid = document.getElementById('tenantGrid');
+
+    if (!data || data.length === 0) {
+      grid.innerHTML = `
+        <div class="col-span-3 text-center py-8">
+          <p class="text-gray-400 text-sm">
+            Belum ada tenant terdaftar. Jadilah yang pertama!
+          </p>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = data.map(t => {
+      const isOpen = t.status === 'buka';
+      return `
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4
+                    flex items-center gap-3 card-hover cursor-pointer"
+             onclick="cekLoginSebelumMasuk('pages/mahasiswa/kantin.html')">
+          <div class="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0
+                      flex items-center justify-center text-2xl">
+            ${t.foto_toko
+              ? `<img src="${t.foto_toko}" class="w-full h-full object-cover" />`
+              : '🏪'}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <p class="text-sm font-semibold text-gray-700 truncate">
+                ${t.nama_toko}
+              </p>
+              <span class="text-xs px-1.5 py-0.5 rounded-full shrink-0 font-medium"
+                    style="background:${isOpen ? '#D1FAE5' : '#FEE2E2'};
+                           color:${isOpen ? '#065F46' : '#991B1B'}">
+                ${isOpen ? 'Buka' : 'Tutup'}
+              </span>
+            </div>
+            <p class="text-xs text-gray-400 truncate mt-0.5">
+              ${t.deskripsi || (t.kategori || []).join(', ') || '—'}
+            </p>
+            <p class="text-xs mt-0.5" style="color:#F5A623">
+              ⭐ ${t.rating > 0 ? t.rating.toFixed(1) : '—'}
+            </p>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Kirim saran via EmailJS
+  document.getElementById('btnKirimSaran').addEventListener('click', async () => {
+    const btn   = document.getElementById('btnKirimSaran');
+    const nama  = document.getElementById('saranNama').value.trim();
+    const email = document.getElementById('saranEmail').value.trim();
+    const pesan = document.getElementById('saranPesan').value.trim();
+
+    if (!nama || !pesan) {
+      showToast('Nama dan pesan wajib diisi', 'warning');
+      return;
+    }
+
+    btn.disabled    = true;
+    btn.textContent = 'Mengirim...';
+
+    try {
+      // Simpan ke Supabase
+      await window._supabase
+        .from('suggestions')
+        .insert({ nama, email: email || null, pesan });
+
+      // Kirim email via EmailJS
+      await emailjs.send(
+        'service_9z3zgcx',
+        'template_6omf9zt',
+        {
+          nama,
+          email:  email || 'Tidak diisi',
+          pesan,
+          waktu:  new Date().toLocaleString('id-ID')
         }
-      });
-    }, { threshold: 0.15 });
+      );
 
-    document.querySelectorAll('[data-aos]').forEach(el => observer.observe(el));
+      document.getElementById('saranNama').value  = '';
+      document.getElementById('saranEmail').value = '';
+      document.getElementById('saranPesan').value = '';
 
-    // ── Navbar shadow on scroll
-    window.addEventListener('scroll', () => {
-      const nav = document.getElementById('navbar');
-      if (window.scrollY > 20) {
-        nav.classList.add('shadow-md');
-      } else {
-        nav.classList.remove('shadow-md');
+      document.getElementById('saranSuccess').classList.remove('hidden');
+      setTimeout(() => {
+        document.getElementById('saranSuccess').classList.add('hidden');
+      }, 4000);
+
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal mengirim saran. Coba lagi.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = '📨 Kirim Saran';
+    }
+  });
+
+  // ── Mobile menu toggle
+  document.getElementById('btnMobileMenu').addEventListener('click', () => {
+    document.getElementById('mobileMenu').classList.toggle('hidden');
+  });
+
+  // ── Scroll animation
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('aos-animate');
       }
     });
+  }, { threshold: 0.15 });
 
-    // ── Init
-    loadStats();
-    loadTenants();
-  </script>
+  document.querySelectorAll('[data-aos]').forEach(el => observer.observe(el));
+
+  // ── Navbar shadow on scroll
+  window.addEventListener('scroll', () => {
+    const nav = document.getElementById('navbar');
+    nav.classList.toggle('shadow-md', window.scrollY > 20);
+  });
+
+  // ── Init
+  loadStats();
+  loadTenants();
+
+</script>
 </body>
 </html>
