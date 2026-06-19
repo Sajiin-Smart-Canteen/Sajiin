@@ -3,9 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Canteen — Pesan Makanan Tanpa Antri</title>
-
+  <title>Sajiin - Smart Canteen</title>
+  <link rel="icon" type="image/png" href="favicon.ico.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    emailjs.init('NFlvTkO6-zwrlaWYE');
+  </script>
   <script>
     window.__SUPABASE_URL__ = 'https://qeilvipuxxtbjfhioefd.supabase.co';
     window.__SUPABASE_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaWx2aXB1eHh0YmpmaGlvZWZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDExMDAsImV4cCI6MjA5NjYxNzEwMH0.iDrj8fmcbuiJrv-mSOu9XYUrCYLv_Gga-vFQ12G5Pys';
@@ -95,7 +100,7 @@
       <a href="#" class="flex items-center gap-2.5">
         <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white text-lg"
              style="background:#1B6B45">🍽️</div>
-        <span class="font-bold text-lg" style="color:#1B6B45">Smart Canteen</span>
+        <span class="font-bold text-lg" style="color:#1B6B45">Sajiin</span>
       </a>
 
       <!-- Nav links (desktop) -->
@@ -766,8 +771,8 @@
             <div>
               <p class="font-semibold text-gray-700">Lokasi</p>
               <p class="text-sm text-gray-500 mt-0.5">
-                Universitas Nurtanio Bandung<br />
-                Kampus Utara, Jl. Pajajaran No. 219, Bandung
+                UPN "Veteran" Jakarta<br />
+                Jl. R.S Fatmawati No. 1, Cilandak, Jakarta Selatan 12450
               </p>
             </div>
           </div>
@@ -776,7 +781,7 @@
                         text-xl shrink-0" style="background:#F0FAF5">📧</div>
             <div>
               <p class="font-semibold text-gray-700">Email</p>
-              <p class="text-sm text-gray-500 mt-0.5">support@smartcanteen.id</p>
+              <p class="text-sm text-gray-500 mt-0.5">dummytimeyeay@gmail.com</p>
             </div>
           </div>
           <div class="flex items-start gap-4">
@@ -919,10 +924,7 @@
       <div class="border-t border-white/10 pt-6 flex flex-col md:flex-row
                   items-center justify-between gap-4">
         <p class="text-white/40 text-xs">
-          © 2026 Smart Canteen. All rights reserved.
-        </p>
-        <p class="text-white/40 text-xs">
-          Diselenggarakan oleh BEM FIKI & HMIF — Universitas Nurtanio Bandung
+          © 2026 Sajiin-Smart Canteen. All rights reserved.
         </p>
       </div>
     </div>
@@ -1042,39 +1044,49 @@
     }
 
     // ── Kirim saran (simpan ke notifikasi atau tabel baru)
-    document.getElementById('btnKirimSaran').addEventListener('click', async () => {
-      const btn   = document.getElementById('btnKirimSaran');
-      const nama  = document.getElementById('saranNama').value.trim();
-      const email = document.getElementById('saranEmail').value.trim();
-      const pesan = document.getElementById('saranPesan').value.trim();
+document.getElementById('btnKirimSaran').addEventListener('click', async () => {
+  const btn   = document.getElementById('btnKirimSaran');
+  const nama  = document.getElementById('saranNama').value.trim();
+  const email = document.getElementById('saranEmail').value.trim();
+  const pesan = document.getElementById('saranPesan').value.trim();
 
-      if (!nama || !pesan) {
-        alert('Nama dan pesan wajib diisi');
-        return;
+  if (!nama || !pesan) {
+    alert('Nama dan pesan wajib diisi');
+    return;
+  }
+
+  btn.disabled    = true;
+  btn.textContent = 'Mengirim...';
+
+  try {
+    await emailjs.send(
+      'service_9z3zgcx',   
+      'template_6omf9zt', 
+      {
+        nama,
+        email:  email || 'Tidak diisi',
+        pesan,
+        waktu:  new Date().toLocaleString('id-ID')
       }
+    );
 
-      btn.disabled    = true;
-      btn.textContent = 'Mengirim...';
+    document.getElementById('saranNama').value  = '';
+    document.getElementById('saranEmail').value = '';
+    document.getElementById('saranPesan').value = '';
 
-      // Simpan ke tabel notifications sebagai sistem
-      // atau bisa dikirim ke email via Supabase Edge Function
-      // Untuk demo: simpan ke console + tampilkan sukses
-      console.log('Saran diterima:', { nama, email, pesan });
+    document.getElementById('saranSuccess').classList.remove('hidden');
+    setTimeout(() => {
+      document.getElementById('saranSuccess').classList.add('hidden');
+    }, 4000);
 
-      // Simulasi kirim (delay 1 detik)
-      await new Promise(r => setTimeout(r, 1000));
-
-      document.getElementById('saranNama').value  = '';
-      document.getElementById('saranEmail').value = '';
-      document.getElementById('saranPesan').value = '';
-      document.getElementById('saranSuccess').classList.remove('hidden');
-      setTimeout(() => {
-        document.getElementById('saranSuccess').classList.add('hidden');
-      }, 4000);
-
-      btn.disabled    = false;
-      btn.textContent = '📨 Kirim Saran';
-    });
+  } catch (err) {
+    console.error(err);
+    alert('Gagal mengirim saran. Coba lagi.');
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '📨 Kirim Saran';
+  }
+});
 
     // ── Mobile menu toggle
     document.getElementById('btnMobileMenu').addEventListener('click', () => {
